@@ -16,8 +16,9 @@ import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.{DataFrame, RowFactory}
-import org.apache.spark.sql.functions.{col, min}
+import org.apache.spark.sql.functions.{col, min, row_number}
 import org.apache.spark.sql.types.{ArrayType, DataTypes, FloatType}
 
 import java.util
@@ -189,8 +190,14 @@ object Main {
     distances.show(100)
     distances.columns.foreach{ println }
 
-    val closestPoints = distances.groupBy("prediction", "GISJOIN").min("distance")  //.agg(min(col("distance")))
-    closestPoints.show(10)
+    //val closestPoints = distances.groupBy("prediction").min("distance").join(distances, )  //.agg(min(col("distance")))
+    //closestPoints.show(10)
+
+    val closestPoints = Window.partitionBy("prediction").orderBy(col("distance").asc)
+    distances.withColumn("row",row_number.over(closestPoints))
+      .where($"row" === 1).drop("row")
+      .show()
+
   }
 
 }
