@@ -10,12 +10,13 @@
  *    Caleb Carlson
  *
  * ----------------------------------------------- */
+package org.sustain
 
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 
-class Main {
+object Main {
 
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
@@ -30,19 +31,10 @@ class Main {
     val FEATURES: Array[String] = Array("median_household_income")
 
     /* Minimum Imports */
-    import com.mongodb.spark.config.ReadConfig
-    import com.mongodb.spark.sql.DefaultSource
     import com.mongodb.spark.MongoSpark
-    import org.apache.spark.sql.SparkSession
-    import org.apache.spark.sql.DataFrame
-    import org.apache.spark.sql.Dataset
-    import org.apache.spark.sql.Row
-    import org.apache.spark.ml.feature.{VectorAssembler, StringIndexer}
-    import org.apache.spark.ml.regression.LinearRegression
-    import org.apache.spark.ml.regression.LinearRegressionModel
-    import org.apache.spark.ml.evaluation.RegressionEvaluator
-    import org.apache.spark.sql.functions.col
+    import org.apache.spark.ml.feature.VectorAssembler
     import org.apache.spark.ml.linalg.Vector
+    import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
     val conf: SparkConf = new SparkConf()
       .setMaster(SPARK_MASTER)
@@ -56,9 +48,7 @@ class Main {
     // Create the SparkSession and ReadConfig
     val sparkConnector: SparkSession = SparkSession.builder()
       .config(conf)
-      .getOrCreate()
-
-    import sparkConnector.implicits._ // For the $()-referenced columns
+      .getOrCreate() // For the $()-referenced columns
 
     // Read collection into a DataSet, dropping null rows
     var collection: Dataset[Row] = MongoSpark.load(sparkConnector)
