@@ -186,7 +186,7 @@ object Main {
 
       (row.getString(0), row.getInt(2), distance) // (String, Int, Double)
     }).toDF("GISJOIN", "prediction", "distance").as("distances")
-    distances.show(10)
+    distances.show(1000)
     distances.columns.foreach{ println }
 
     val closestPoints = distances.groupBy("prediction").count()  //.agg(min(col("distance")))
