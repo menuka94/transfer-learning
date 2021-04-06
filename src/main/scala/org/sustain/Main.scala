@@ -118,7 +118,7 @@ object Main {
       val prediction = row.getInt(4)
       (row.get(1), row.get(2), row.get(3), row.get(4), centers(prediction))
     }).toDF("GISJOIN", "features", "prediction", "center")
-      .withColumn("distance", col("features").minus(col("center")))
+      //.withColumn("distance", col("features").minus(col("center")))
 
 
     /*
