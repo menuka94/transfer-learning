@@ -15,7 +15,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 
-object Main {
+class Main {
 
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
