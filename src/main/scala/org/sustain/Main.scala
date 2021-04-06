@@ -188,8 +188,9 @@ object Main {
     }).toDF("GISJOIN", "prediction", "distance").as("distances")
     distances.show(10)
 
-    val closestPoints = distances.groupBy("prediction").agg(min("distance"))  //.agg(min(col("distance")))
-    closestPoints.show(10)
+    distances.columns.foreach{ println }
+    //val closestPoints = distances.groupBy().min("distance")  //.agg(min(col("distance")))
+    //closestPoints.show(10)
   }
 
 }
