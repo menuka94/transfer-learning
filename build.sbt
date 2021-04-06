@@ -5,7 +5,6 @@ version := "1.0"
 scalaVersion := "2.12.12"
 
 Compile/mainClass := Some("org.sustain.Main")
-run/mainClass := Some("org.sustain.Main")
 
 libraryDependencies ++= Seq(
   "org.mongodb.spark" %% "mongo-spark-connector"  % "3.0.1",
