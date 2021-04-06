@@ -104,7 +104,8 @@ object Main {
     +--------+-----------------------+--------------------+----------+
      */
 
-    predictions = predictions.withColumn("center", col("prediction"))
+    println(">>> With Center")
+    predictions = predictions.withColumn("center", col("prediction") * 1)
     predictions.show(10)
   }
 
