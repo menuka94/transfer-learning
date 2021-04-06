@@ -15,6 +15,8 @@ package org.sustain
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
+import org.apache.spark.ml.linalg.Vectors
+
 import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{ArrayType, DataTypes, FloatType}
@@ -179,8 +181,17 @@ object Main {
      */
     println(">>> With Center")
     val arrayCol: ArrayType = DataTypes.createArrayType(FloatType)
-    predictions = predictions.withColumn("center", col("features"))
-    var withCenters = predictions.map(_.getAs[Vector]("features").toArray)
+
+    var withCenters = predictions.map( row => {
+      val prediction:   Int    = row.getInt(3)        // Cluster prediction
+      val featuresVect: Vector = row.getAs[Vector](2) // Normalized features
+      val centersVect:  Vector = centers(prediction)  // Normalized cluster centers
+      val distance = Vectors.sqdist(featuresVect, centersVect) // Squared dist between features and cluster centers
+
+      (row.getString(1), row.getInt(3), distance) // (String, Int, Double)
+    })
+
+    //withCenters = withCenters.withColumn("center", col("features"))
     withCenters.show(10)
 
 
