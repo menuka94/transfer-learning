@@ -31,6 +31,7 @@ object Main {
     val FEATURES: Array[String] = Array("median_household_income")
 
     /* Minimum Imports */
+    import com.mongodb.spark._
     import com.mongodb.spark.MongoSpark
     import org.apache.spark.ml.feature.VectorAssembler
     import org.apache.spark.ml.linalg.Vector
