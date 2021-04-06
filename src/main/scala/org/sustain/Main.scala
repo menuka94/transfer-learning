@@ -181,12 +181,12 @@ object Main {
     val distances: Dataset[Row] = predictions.map( row => {
       val prediction:   Int    = row.getInt(2)        // Cluster prediction
       val featuresVect: Vector = row.getAs[Vector](1) // Normalized features
-      val centersVect:  Vector = centers(prediction-1)  // Normalized cluster centers
+      val centersVect:  Vector = centers(prediction)  // Normalized cluster centers
       val distance = Vectors.sqdist(featuresVect, centersVect) // Squared dist between features and cluster centers
 
       (row.getString(0), row.getInt(2), distance) // (String, Int, Double)
     }).toDF("GISJOIN", "prediction", "distance").as("distances")
-    distances.show(1000)
+    distances.show(100)
     distances.columns.foreach{ println }
 
     val closestPoints = distances.groupBy("prediction").count()  //.agg(min(col("distance")))
