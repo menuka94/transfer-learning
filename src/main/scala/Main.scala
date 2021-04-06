@@ -11,8 +11,6 @@
  *
  * ----------------------------------------------- */
 
-package org.sustain
-
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
