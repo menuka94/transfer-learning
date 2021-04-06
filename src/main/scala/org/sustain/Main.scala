@@ -15,6 +15,7 @@ package org.sustain
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
+import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.functions.col
 
 import java.util
@@ -75,6 +76,7 @@ object Main {
     var normalizedFeatures: Dataset[Row] = minMaxScalerModel.transform(withFeaturesAssembled)
     normalizedFeatures = normalizedFeatures.drop("features")
     normalizedFeatures = normalizedFeatures.withColumnRenamed("normalized_features", "features")
+      .select("GISJOIN", "features")
 
     println(">>> With normalized features:\n")
     normalizedFeatures.show(10)
@@ -111,6 +113,11 @@ object Main {
 
     println(">>> With Center")
     predictions = predictions.withColumn("center", col("prediction"))
+
+    val withCenters: Dataset[Row] = predictions.map(row => {
+      val prediction = row.getInt(4)
+      (row.get(1), row.get(2), row.get(3), row.get(4), centers(prediction))
+    }).toDF("GISJOIN", "features", "prediction", "center")
       .withColumn("distance", col("features").minus(col("center")))
 
 
@@ -130,7 +137,7 @@ object Main {
     })
     */
 
-    predictions.show(10)
+    withCenters.show(10)
   }
 
 }
