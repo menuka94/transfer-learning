@@ -104,10 +104,8 @@ object Main {
     +--------+-----------------------+--------------------+----------+
      */
 
-    predictions.withColumn("center", col("prediction"))
+    predictions = predictions.withColumn("center", col("prediction"))
     predictions.show(10)
-
-
   }
 
 }
