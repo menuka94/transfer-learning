@@ -17,10 +17,10 @@ import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 
-object Main extends App {
+object Main {
 
   /* Entrypoint for the application */
-  override def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
 
     /* Global Variables */
     val SPARK_MASTER: String = "spark://lattice-150:8079"
