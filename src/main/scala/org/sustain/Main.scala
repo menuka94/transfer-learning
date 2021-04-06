@@ -16,8 +16,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 import org.apache.spark.ml.linalg.Vectors
-
-import org.apache.spark.sql.RowFactory
+import org.apache.spark.sql.{DataFrame, RowFactory}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{ArrayType, DataTypes, FloatType}
 
@@ -163,62 +162,34 @@ object Main {
     println(">>> Predictions centers:\n")
     predictions.show(10)
 
-    /* Add "center" column
-      +--------+---+--------------------+
-      |      _1| _2|                  _3|
-      +--------+---+--------------------+
-      |G2100890|  1| 0.03780083758760514|
-      |G2101610|  1|0.057190039499994794|
-      |G1300530|  2|0.003867606680998721|
-      |G2500190|  4|  0.2400979012681112|
-      |G2102250|  3|0.017823481692243952|
-      |G2101770|  1|0.058856226541719056|
-      |G3900210|  2|0.005930970416158598|
-      |G2100670|  2|0.003982928815943246|
-      |G3901690|  2|0.004567911476835983|
-      |G3900170|  2| 0.01836537152962727|
-      +--------+---+--------------------+
-
+    /* Calculate distances to cluster center
+      +--------+----------+--------------------+
+      | GISJOIN|prediction|            distance|
+      +--------+----------+--------------------+
+      |G2100890|         1| 0.03780083758760514|
+      |G2101610|         1|0.057190039499994794|
+      |G1300530|         2|0.003867606680998721|
+      |G2500190|         4|  0.2400979012681112|
+      |G2102250|         3|0.017823481692243952|
+      |G2101770|         1|0.058856226541719056|
+      |G3900210|         2|0.005930970416158598|
+      |G2100670|         2|0.003982928815943246|
+      |G3901690|         2|0.004567911476835983|
+      |G3900170|         2| 0.01836537152962727|
+      +--------+----------+--------------------+
      */
-    println(">>> With Center")
-    val arrayCol: ArrayType = DataTypes.createArrayType(FloatType)
-
-    var withCenters = predictions.map( row => {
+    val distances: Dataset[Row] = predictions.map( row => {
       val prediction:   Int    = row.getInt(2)        // Cluster prediction
       val featuresVect: Vector = row.getAs[Vector](1) // Normalized features
       val centersVect:  Vector = centers(prediction-1)  // Normalized cluster centers
       val distance = Vectors.sqdist(featuresVect, centersVect) // Squared dist between features and cluster centers
 
       (row.getString(0), row.getInt(2), distance) // (String, Int, Double)
-    }).toDF("GISJOIN", "prediction", "distance")
+    }).toDF("GISJOIN", "prediction", "distance").as("distances")
+    distances.show(10)
 
-    //withCenters = withCenters.withColumn("center", col("features"))
-    withCenters.show(10)
-
-
-//    val withCenters: Dataset[(String, util.List[Float], Int, Vector)] = predictions.map(row => {
-//      val prediction = row.getInt(4)
-//      (row.getString(1), row.getList[Float](2), row.getInt(3), centers(prediction))
-//    })
-      //.withColumn("distance", col("features").minus(col("center")))
-
-
-    /*
-    val distances = predictions.map(row => {
-
-          val features: util.List[Float] = row.getList[Float](3)
-          val prediction = row.getInt(4)
-          val centersVect = centers(prediction)
-
-          var sum = 0.0
-          for (i <- centers.indices) {
-            sum = sum + (features.get(i) - centers(i))
-          }
-
-      (row.get(1), row.get(2), row.get(3), col("features").minus(col("center")))
-    })
-    */
-
+    val closestPoints = distances.groupBy(col("prediction")).min("distance")
+    closestPoints.show(10)
   }
 
 }
