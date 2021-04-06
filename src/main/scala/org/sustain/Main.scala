@@ -58,23 +58,53 @@ object Main {
 
     import sparkConnector.implicits._
 
-    // Read collection into a DataSet, dropping null rows
+    /* Read collection into a DataSet, dropping null rows
+      +--------+-----------------------+
+      | GISJOIN|median_household_income|
+      +--------+-----------------------+
+      |G2100890|                43808.0|
+      |G2101610|                39192.0|
+      |G1300530|                48684.0|
+      |G2500190|                83546.0|
+      |G2102250|                37445.0|
+      |G2101770|                38835.0|
+      |G3900210|                50214.0|
+      |G2100670|                48779.0|
+      |G3901690|                49241.0|
+      |G3900170|                56253.0|
+      +--------+-----------------------+
+     */
     var collection: Dataset[Row] = MongoSpark.load(sparkConnector)
     collection = collection.select("GISJOIN", "median_household_income").na.drop()
     collection.show(10)
 
-    // Assemble features into single column
-    var assembler: VectorAssembler = new VectorAssembler()
+    /* Assemble features into single column
+      +--------+--------------------+
+      | GISJOIN|            features|
+      +--------+--------------------+
+      |G2100890|[0.23429567913195...|
+      |G2101610|[0.18957566363107...|
+      |G1300530|[0.2815345863204805]|
+      |G2500190|[0.6192792094555318]|
+      |G2102250|[0.17265064909901...|
+      |G2101770|[0.18611703158302...|
+      |G3900210|[0.29635729509784...|
+      |G2100670|[0.28245495059097...|
+      |G3901690|[0.28693082735903...|
+      |G3900170|[0.35486339856616...|
+      +--------+--------------------+
+     */
+    val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(FEATURES)
       .setOutputCol("features")
-    var withFeaturesAssembled: Dataset[Row] = assembler.transform(collection)
-    collection.show(10)
+    val withFeaturesAssembled: Dataset[Row] = assembler.transform(collection)
+    withFeaturesAssembled.show(10)
 
     // Normalize features
-    var minMaxScaler: MinMaxScaler = new MinMaxScaler()
+    val minMaxScaler: MinMaxScaler = new MinMaxScaler()
       .setInputCol("features")
       .setOutputCol("normalized_features")
-    var minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(withFeaturesAssembled)
+    val minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(withFeaturesAssembled)
     var normalizedFeatures: Dataset[Row] = minMaxScalerModel.transform(withFeaturesAssembled)
     normalizedFeatures = normalizedFeatures.drop("features")
     normalizedFeatures = normalizedFeatures.withColumnRenamed("normalized_features", "features")
