@@ -13,6 +13,7 @@
 
 package org.sustain
 
+import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 
@@ -45,14 +46,18 @@ object Main extends App {
     import org.apache.spark.sql.functions.col
     import org.apache.spark.ml.linalg.Vector
 
+    val conf: SparkConf = new SparkConf()
+      .setMaster(SPARK_MASTER)
+      .setAppName(APP_NAME)
+      .set("spark.executor.cores", "4")
+      .set("spark.executor.memory", "4G")
+      .set("spark.mongodb.input.uri", MONGO_URI)
+      .set("spark.mongodb.input.database", MONGO_DB)
+      .set("spark.mongodb.input.collection", MONGO_COLLECTION)
 
     // Create the SparkSession and ReadConfig
     val sparkConnector: SparkSession = SparkSession.builder()
-      .master(SPARK_MASTER)
-      .appName(APP_NAME)
-      .config("spark.mongodb.input.uri", MONGO_URI)
-      .config("spark.mongodb.input.database", MONGO_DB)
-      .config("spark.mongodb.input.collection", MONGO_COLLECTION)
+      .config(conf)
       .getOrCreate()
 
     import sparkConnector.implicits._ // For the $()-referenced columns
