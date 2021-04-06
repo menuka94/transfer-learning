@@ -189,7 +189,7 @@ object Main {
     distances.show(100)
     distances.columns.foreach{ println }
 
-    val closestPoints = distances.groupBy("prediction").count()  //.agg(min(col("distance")))
+    val closestPoints = distances.groupBy("prediction").min("distance")  //.agg(min(col("distance")))
     closestPoints.show(10)
   }
 
