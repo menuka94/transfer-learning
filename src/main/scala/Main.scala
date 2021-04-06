@@ -64,7 +64,10 @@ object Main extends App {
 
     // Read collection into a DataSet, dropping null rows
     var collection: Dataset[Row] = MongoSpark.load(sparkConnector)
-    collection.select("GISJOIN", "median_household_income").na.drop()
+    collection = collection.select("GISJOIN", "median_household_income").na.drop()
+
+    println(">>> GOT HERE")
+    collection.show(10)
 
     // Assemble features into single column
     var assembler: VectorAssembler = new VectorAssembler()
