@@ -27,6 +27,16 @@ object Main extends App {
   val K: Int = 5
   val FEATURES: Array[String] = Array("median_household_income")
 
+  def logEnvironment(): Unit = {
+    printf("SPARK_MASTER: %s", SPARK_MASTER)
+    printf("APP_NAME: %s", APP_NAME)
+    printf("MONGO_URI: %s", MONGO_URI)
+    printf("MONGO_DB: %s", MONGO_DB)
+    printf("MONGO_COLLECTION: %s", MONGO_COLLECTION)
+    printf("K: %s", K)
+    printf("FEATURES: %s", FEATURES)
+  }
+
 
   /* Entrypoint for the application */
   override def main(args: Array[String]): Unit = {
@@ -45,6 +55,8 @@ object Main extends App {
     import org.apache.spark.ml.evaluation.RegressionEvaluator
     import org.apache.spark.sql.functions.col
     import org.apache.spark.ml.linalg.Vector
+
+    logEnvironment()
 
     // Create the SparkSession and ReadConfig
     val sparkConnector: SparkSession = SparkSession.builder()
