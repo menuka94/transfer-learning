@@ -185,7 +185,7 @@ object Main {
     var withCenters = predictions.map( row => {
       val prediction:   Int    = row.getInt(3)        // Cluster prediction
       val featuresVect: Vector = row.getAs[Vector](2) // Normalized features
-      val centersVect:  Vector = centers(prediction)  // Normalized cluster centers
+      val centersVect:  Vector = centers(prediction-1)  // Normalized cluster centers
       val distance = Vectors.sqdist(featuresVect, centersVect) // Squared dist between features and cluster centers
 
       (row.getString(1), row.getInt(3), distance) // (String, Int, Double)
