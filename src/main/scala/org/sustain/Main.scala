@@ -17,6 +17,9 @@ import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 import org.apache.spark.sql.functions.col
 
+import java.util
+import java.util.List
+
 object Main {
 
   /* Entrypoint for the application */
@@ -51,6 +54,8 @@ object Main {
     val sparkConnector: SparkSession = SparkSession.builder()
       .config(conf)
       .getOrCreate() // For the $()-referenced columns
+
+    import sparkConnector.implicits._
 
     // Read collection into a DataSet, dropping null rows
     var collection: Dataset[Row] = MongoSpark.load(sparkConnector)
@@ -105,7 +110,26 @@ object Main {
      */
 
     println(">>> With Center")
-    predictions = predictions.withColumn("center", col("prediction") * 1)
+    predictions = predictions.withColumn("center", col("prediction"))
+      .withColumn("distance", col("features").minus(col("center")))
+
+
+    /*
+    val distances = predictions.map(row => {
+
+          val features: util.List[Float] = row.getList[Float](3)
+          val prediction = row.getInt(4)
+          val centersVect = centers(prediction)
+
+          var sum = 0.0
+          for (i <- centers.indices) {
+            sum = sum + (features.get(i) - centers(i))
+          }
+
+      (row.get(1), row.get(2), row.get(3), col("features").minus(col("center")))
+    })
+    */
+
     predictions.show(10)
   }
 
