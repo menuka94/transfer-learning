@@ -18,28 +18,17 @@ import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 
 object Main extends App {
 
-  /* Global Variables */
-  val SPARK_MASTER: String = "spark://lattice-150:8079"
-  val APP_NAME: String = "Transfer Learning"
-  val MONGO_URI: String = "mongodb://lattice-100:27018/"
-  val MONGO_DB: String = "sustaindb"
-  val MONGO_COLLECTION: String = "county_stats"
-  val K: Int = 5
-  val FEATURES: Array[String] = Array("median_household_income")
-
-  def logEnvironment(): Unit = {
-    printf("SPARK_MASTER: %s", SPARK_MASTER)
-    printf("APP_NAME: %s", APP_NAME)
-    printf("MONGO_URI: %s", MONGO_URI)
-    printf("MONGO_DB: %s", MONGO_DB)
-    printf("MONGO_COLLECTION: %s", MONGO_COLLECTION)
-    printf("K: %s", K)
-    printf("FEATURES: %s", FEATURES)
-  }
-
-
   /* Entrypoint for the application */
   override def main(args: Array[String]): Unit = {
+
+    /* Global Variables */
+    val SPARK_MASTER: String = "spark://lattice-150:8079"
+    val APP_NAME: String = "Transfer Learning"
+    val MONGO_URI: String = "mongodb://lattice-100:27018/"
+    val MONGO_DB: String = "sustaindb"
+    val MONGO_COLLECTION: String = "county_stats"
+    val K: Int = 5
+    val FEATURES: Array[String] = Array("median_household_income")
 
     /* Minimum Imports */
     import com.mongodb.spark.config.ReadConfig
@@ -56,7 +45,6 @@ object Main extends App {
     import org.apache.spark.sql.functions.col
     import org.apache.spark.ml.linalg.Vector
 
-    logEnvironment()
 
     // Create the SparkSession and ReadConfig
     val sparkConnector: SparkSession = SparkSession.builder()
