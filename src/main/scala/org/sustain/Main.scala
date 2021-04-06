@@ -114,10 +114,10 @@ object Main {
     println(">>> With Center")
     predictions = predictions.withColumn("center", col("prediction"))
 
-    val withCenters: Dataset[Row] = predictions.map(row => {
+    val withCenters: Dataset[(String, util.List[Float], Int, Vector)] = predictions.map(row => {
       val prediction = row.getInt(4)
-      (row.get(1), row.get(2), row.get(3), row.get(4), centers(prediction))
-    }).toDF("GISJOIN", "features", "prediction", "center")
+      (row.getString(1), row.getList[Float](2), row.getInt(3), centers(prediction))
+    })
       //.withColumn("distance", col("features").minus(col("center")))
 
 
