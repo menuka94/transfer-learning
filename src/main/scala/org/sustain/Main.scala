@@ -61,12 +61,14 @@ object Main {
     // Read collection into a DataSet, dropping null rows
     var collection: Dataset[Row] = MongoSpark.load(sparkConnector)
     collection = collection.select("GISJOIN", "median_household_income").na.drop()
+    collection.show(10)
 
     // Assemble features into single column
     var assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(FEATURES)
       .setOutputCol("features")
     var withFeaturesAssembled: Dataset[Row] = assembler.transform(collection)
+    collection.show(10)
 
     // Normalize features
     var minMaxScaler: MinMaxScaler = new MinMaxScaler()
@@ -114,10 +116,10 @@ object Main {
     println(">>> With Center")
     predictions = predictions.withColumn("center", col("prediction"))
 
-    val withCenters: Dataset[(String, util.List[Float], Int, Vector)] = predictions.map(row => {
-      val prediction = row.getInt(4)
-      (row.getString(1), row.getList[Float](2), row.getInt(3), centers(prediction))
-    })
+//    val withCenters: Dataset[(String, util.List[Float], Int, Vector)] = predictions.map(row => {
+//      val prediction = row.getInt(4)
+//      (row.getString(1), row.getList[Float](2), row.getInt(3), centers(prediction))
+//    })
       //.withColumn("distance", col("features").minus(col("center")))
 
 
@@ -137,7 +139,7 @@ object Main {
     })
     */
 
-    withCenters.show(10)
+    predictions.show(10)
   }
 
 }
