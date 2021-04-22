@@ -105,20 +105,20 @@ object Main {
     clusteringCollection.show(10)
 
     /* Assemble features into single column
-      +--------+-----------------------+---------+
-      | GISJOIN|median_household_income| features|
-      +--------+-----------------------+---------+
-      |G2100890|                43808.0|[43808.0]|
-      |G2101610|                39192.0|[39192.0]|
-      |G1300530|                48684.0|[48684.0]|
-      |G2500190|                83546.0|[83546.0]|
-      |G2102250|                37445.0|[37445.0]|
-      |G2101770|                38835.0|[38835.0]|
-      |G3900210|                50214.0|[50214.0]|
-      |G2100670|                48779.0|[48779.0]|
-      |G3901690|                49241.0|[49241.0]|
-      |G3900170|                56253.0|[56253.0]|
-      +--------+-----------------------+---------+
+      +--------+-------------------------+-------------------+
+      |gis_join|temp_surface_level_kelvin|           features|
+      +--------+-------------------------+-------------------+
+      |G4804230|        281.4640808105469|[281.4640808105469]|
+      |G5600390|        265.2140808105469|[265.2140808105469]|
+      |G1701150|        265.7140808105469|[265.7140808105469]|
+      |G0601030|        282.9640808105469|[282.9640808105469]|
+      |G3701230|        279.2140808105469|[279.2140808105469]|
+      |G3700690|        280.8390808105469|[280.8390808105469]|
+      |G3701070|        280.9640808105469|[280.9640808105469]|
+      |G4803630|        275.7140808105469|[275.7140808105469]|
+      |G5108200|        273.4640808105469|[273.4640808105469]|
+      |G4801170|        269.3390808105469|[269.3390808105469]|
+      +--------+-------------------------+-------------------+
      */
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(FEATURES)
@@ -142,7 +142,7 @@ object Main {
       |G3900170|[0.35486339856616...|
       +--------+--------------------+
      */
-    /*
+
     val minMaxScaler: MinMaxScaler = new MinMaxScaler()
       .setInputCol("features")
       .setOutputCol("normalized_features")
@@ -150,10 +150,10 @@ object Main {
     var normalizedFeatures: Dataset[Row] = minMaxScalerModel.transform(withFeaturesAssembled)
     normalizedFeatures = normalizedFeatures.drop("features")
     normalizedFeatures = normalizedFeatures.withColumnRenamed("normalized_features", "features")
-      .select("GISJOIN", "features")
+      .select("gis_join", "features")
     println(">>> With normalized features:\n")
     normalizedFeatures.show(10)
-     */
+
 
     /* KMeans clustering centers
       [0.4287200541151439]
