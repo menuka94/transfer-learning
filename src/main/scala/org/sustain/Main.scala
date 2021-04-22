@@ -84,7 +84,7 @@ object Main {
 
     val clusteringCollection: Dataset[Row] = collection.filter(
       col("year_month_day_hour") === YEAR_MONTH_DAY_HOUR && col("timestep") === 0
-    )
+    ).select("gis_join", "temp_surface_level_kelvin")
     clusteringCollection.show(10)
 
     /* Assemble features into single column
@@ -103,13 +103,11 @@ object Main {
       |G3900170|                56253.0|[56253.0]|
       +--------+-----------------------+---------+
      */
-    /*
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(FEATURES)
       .setOutputCol("features")
     val withFeaturesAssembled: Dataset[Row] = assembler.transform(collection)
     withFeaturesAssembled.show(10)
-     */
 
     /* Normalize features
       +--------+--------------------+
