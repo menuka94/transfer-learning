@@ -128,21 +128,20 @@ object Main {
 
     /* Normalize features
       +--------+--------------------+
-      | GISJOIN|            features|
+      |gis_join|            features|
       +--------+--------------------+
-      |G2100890|[0.23429567913195...|
-      |G2101610|[0.18957566363107...|
-      |G1300530|[0.2815345863204805]|
-      |G2500190|[0.6192792094555318]|
-      |G2102250|[0.17265064909901...|
-      |G2101770|[0.18611703158302...|
-      |G3900210|[0.29635729509784...|
-      |G2100670|[0.28245495059097...|
-      |G3901690|[0.28693082735903...|
-      |G3900170|[0.35486339856616...|
+      |G4804230|[0.6709129511677282]|
+      |G5600390|[0.3949044585987261]|
+      |G1701150|[0.4033970276008492]|
+      |G0601030|[0.6963906581740976]|
+      |G3701230|[0.6326963906581741]|
+      |G3700690|[0.6602972399150743]|
+      |G3701070|[0.6624203821656051]|
+      |G4803630|[0.5732484076433121]|
+      |G5108200| [0.535031847133758]|
+      |G4801170|[0.46496815286624...|
       +--------+--------------------+
      */
-
     val minMaxScaler: MinMaxScaler = new MinMaxScaler()
       .setInputCol("features")
       .setOutputCol("normalized_features")
@@ -162,13 +161,12 @@ object Main {
       [0.1292813510233636]
       [0.6361498632909213]
      */
-    /*
     val kMeans: KMeans = new KMeans().setK(K).setSeed(1L)
     val kMeansModel: KMeansModel = kMeans.fit(normalizedFeatures)
     val centers: Array[Vector] = kMeansModel.clusterCenters
     println(">>> Cluster centers:\n")
     centers.foreach { println }
-     */
+
 
     /* Get cluster predictions
       +--------+--------------------+----------+
@@ -186,11 +184,9 @@ object Main {
       |G3900170|[0.35486339856616...|         2|
       +--------+--------------------+----------+
      */
-    /*
     val predictions: Dataset[Row] = kMeansModel.transform(normalizedFeatures)
     println(">>> Predictions centers:\n")
     predictions.show(10)
-     */
 
     /* Calculate distances to cluster center
       +--------+----------+--------------------+
