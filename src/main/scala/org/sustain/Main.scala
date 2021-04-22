@@ -30,13 +30,13 @@ object Main {
   def main(args: Array[String]): Unit = {
 
     /* Global Variables */
-    val SPARK_MASTER: String = "spark://lattice-150:8079"
+    val SPARK_MASTER: String = "spark://lattice-100:8079"
     val APP_NAME: String = "Transfer Learning"
     val MONGO_URI: String = "mongodb://lattice-100:27018/"
     val MONGO_DB: String = "sustaindb"
     val MONGO_COLLECTION: String = "noaa_nam"
     val K: Int = 5
-    val FEATURES: Array[String] = Array("median_household_income")
+    val FEATURES: Array[String] = Array("temp_surface_level_kelvin")
     val YEAR_MONTH_DAY_HOUR: Long = 2010010100
 
     /* Minimum Imports */
@@ -63,24 +63,29 @@ object Main {
     import sparkConnector.implicits._
 
     /* Read collection into a DataSet[Row], dropping null rows
-      +--------+-----------------------+
-      | GISJOIN|median_household_income|
-      +--------+-----------------------+
-      |G2100890|                43808.0|
-      |G2101610|                39192.0|
-      |G1300530|                48684.0|
-      |G2500190|                83546.0|
-      |G2102250|                37445.0|
-      |G2101770|                38835.0|
-      |G3900210|                50214.0|
-      |G2100670|                48779.0|
-      |G3901690|                49241.0|
-      |G3900170|                56253.0|
-      +--------+-----------------------+
+      +--------+-------------------+--------+-------------------------+
+      |gis_join|year_month_day_hour|timestep|temp_surface_level_kelvin|
+      +--------+-------------------+--------+-------------------------+
+      |G4804230|         2010010100|       0|        281.4640808105469|
+      |G5600390|         2010010100|       0|        265.2140808105469|
+      |G1701150|         2010010100|       0|        265.7140808105469|
+      |G0601030|         2010010100|       0|        282.9640808105469|
+      |G3701230|         2010010100|       0|        279.2140808105469|
+      |G3700690|         2010010100|       0|        280.8390808105469|
+      |G3701070|         2010010100|       0|        280.9640808105469|
+      |G4803630|         2010010100|       0|        275.7140808105469|
+      |G5108200|         2010010100|       0|        273.4640808105469|
+      |G4801170|         2010010100|       0|        269.3390808105469|
+      +--------+-------------------+--------+-------------------------+
      */
     var collection: Dataset[Row] = MongoSpark.load(sparkConnector)
-    collection = collection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin").na.drop()
-    collection.show(10)
+    collection = collection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
+      .na.drop()
+
+    val clusteringCollection: Dataset[Row] = collection.filter(
+      col("year_month_day_hour") === YEAR_MONTH_DAY_HOUR && col("timestep") === 0
+    )
+    clusteringCollection.show(10)
 
     /* Assemble features into single column
       +--------+-----------------------+---------+
