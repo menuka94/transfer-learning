@@ -37,7 +37,8 @@ object Main {
     val MONGO_COLLECTION: String = "noaa_nam"
     val K: Int = 5
     val FEATURES: Array[String] = Array("temp_surface_level_kelvin")
-    val YEAR_MONTH_DAY_HOUR: Long = 2010010100
+    val CLUSTERING_YEAR_MONTH_DAY_HOUR: Long = 2010010100
+    val CLUSTERING_TIMESTEP: Long = 0
 
     /* Minimum Imports */
     import com.mongodb.spark._
@@ -82,8 +83,24 @@ object Main {
     collection = collection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
       .na.drop()
 
+    /* Take only 1 entry per GISJOIN across all timesteps for clustering
+      +--------+-------------------------+
+      |gis_join|temp_surface_level_kelvin|
+      +--------+-------------------------+
+      |G4804230|        281.4640808105469|
+      |G5600390|        265.2140808105469|
+      |G1701150|        265.7140808105469|
+      |G0601030|        282.9640808105469|
+      |G3701230|        279.2140808105469|
+      |G3700690|        280.8390808105469|
+      |G3701070|        280.9640808105469|
+      |G4803630|        275.7140808105469|
+      |G5108200|        273.4640808105469|
+      |G4801170|        269.3390808105469|
+      +--------+-------------------------+
+     */
     val clusteringCollection: Dataset[Row] = collection.filter(
-      col("year_month_day_hour") === YEAR_MONTH_DAY_HOUR && col("timestep") === 0
+      col("year_month_day_hour") === CLUSTERING_YEAR_MONTH_DAY_HOUR && col("timestep") === CLUSTERING_TIMESTEP
     ).select("gis_join", "temp_surface_level_kelvin")
     clusteringCollection.show(10)
 
@@ -106,7 +123,7 @@ object Main {
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(FEATURES)
       .setOutputCol("features")
-    val withFeaturesAssembled: Dataset[Row] = assembler.transform(collection)
+    val withFeaturesAssembled: Dataset[Row] = assembler.transform(clusteringCollection)
     withFeaturesAssembled.show(10)
 
     /* Normalize features
