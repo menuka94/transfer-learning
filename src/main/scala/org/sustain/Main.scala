@@ -34,9 +34,10 @@ object Main {
     val APP_NAME: String = "Transfer Learning"
     val MONGO_URI: String = "mongodb://lattice-100:27018/"
     val MONGO_DB: String = "sustaindb"
-    val MONGO_COLLECTION: String = "county_stats"
+    val MONGO_COLLECTION: String = "noaa_nam"
     val K: Int = 5
     val FEATURES: Array[String] = Array("median_household_income")
+    val YEAR_MONTH_DAY_HOUR: Long = 2010010100
 
     /* Minimum Imports */
     import com.mongodb.spark._
@@ -78,7 +79,7 @@ object Main {
       +--------+-----------------------+
      */
     var collection: Dataset[Row] = MongoSpark.load(sparkConnector)
-    collection = collection.select("GISJOIN", "median_household_income").na.drop()
+    collection = collection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin").na.drop()
     collection.show(10)
 
     /* Assemble features into single column
@@ -97,11 +98,13 @@ object Main {
       |G3900170|                56253.0|[56253.0]|
       +--------+-----------------------+---------+
      */
+    /*
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(FEATURES)
       .setOutputCol("features")
     val withFeaturesAssembled: Dataset[Row] = assembler.transform(collection)
     withFeaturesAssembled.show(10)
+     */
 
     /* Normalize features
       +--------+--------------------+
@@ -119,6 +122,7 @@ object Main {
       |G3900170|[0.35486339856616...|
       +--------+--------------------+
      */
+    /*
     val minMaxScaler: MinMaxScaler = new MinMaxScaler()
       .setInputCol("features")
       .setOutputCol("normalized_features")
@@ -129,6 +133,7 @@ object Main {
       .select("GISJOIN", "features")
     println(">>> With normalized features:\n")
     normalizedFeatures.show(10)
+     */
 
     /* KMeans clustering centers
       [0.4287200541151439]
@@ -137,11 +142,13 @@ object Main {
       [0.1292813510233636]
       [0.6361498632909213]
      */
+    /*
     val kMeans: KMeans = new KMeans().setK(K).setSeed(1L)
     val kMeansModel: KMeansModel = kMeans.fit(normalizedFeatures)
     val centers: Array[Vector] = kMeansModel.clusterCenters
     println(">>> Cluster centers:\n")
     centers.foreach { println }
+     */
 
     /* Get cluster predictions
       +--------+--------------------+----------+
@@ -159,9 +166,11 @@ object Main {
       |G3900170|[0.35486339856616...|         2|
       +--------+--------------------+----------+
      */
-    var predictions: Dataset[Row] = kMeansModel.transform(normalizedFeatures)
+    /*
+    val predictions: Dataset[Row] = kMeansModel.transform(normalizedFeatures)
     println(">>> Predictions centers:\n")
     predictions.show(10)
+     */
 
     /* Calculate distances to cluster center
       +--------+----------+--------------------+
@@ -179,6 +188,7 @@ object Main {
       |G3900170|         2| 0.01836537152962727|
       +--------+----------+--------------------+
      */
+    /*
     val distances: Dataset[Row] = predictions.map( row => {
       val prediction:   Int    = row.getInt(2)        // Cluster prediction
       val featuresVect: Vector = row.getAs[Vector](1) // Normalized features
@@ -189,15 +199,30 @@ object Main {
     }).toDF("GISJOIN", "prediction", "distance").as("distances")
     distances.show(100)
     distances.columns.foreach{ println }
+     */
 
-    //val closestPoints = distances.groupBy("prediction").min("distance").join(distances, )  //.agg(min(col("distance")))
+
+    /* Partition by prediction, find the minimum distance value, and pair back with original dataframe.
+      +--------+----------+--------------------+
+      | GISJOIN|prediction|            distance|
+      +--------+----------+--------------------+
+      |G2101010|         1|1.491467328893098...|
+      |G5400570|         3|1.663968354711193...|
+      |G3400370|         4|4.526691617257419E-6|
+      |G3800230|         2|2.824090945215774E-8|
+      |G4000170|         0|5.302094676808709E-9|
+      +--------+----------+--------------------+
+     */
+    //val closestPoints = distances.groupBy("prediction").min("distance")
     //closestPoints.show(10)
-
+    /*
     val closestPoints = Window.partitionBy("prediction").orderBy(col("distance").asc)
     distances.withColumn("row",row_number.over(closestPoints))
       .where($"row" === 1).drop("row")
       .show()
 
+
+     */
   }
 
 }
