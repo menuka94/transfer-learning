@@ -239,8 +239,12 @@ object Main {
 
 
     // --------------- Exhaustively Train K GISJoin Models ---------------------
-    val gisJoins: Array[String] = distances.select("gisJoin").map(
-      row => row.mkString
+
+    /* Extract and collect center gisjoins and the predicted cluster
+
+     */
+    val gisJoins: Array[(String, Int)] = distances.select("gis_join").map(
+        row => (row.mkString, row.getInt(1))
     ).collect()
     gisJoins.foreach{ println }
 
