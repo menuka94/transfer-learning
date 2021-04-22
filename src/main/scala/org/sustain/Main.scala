@@ -207,7 +207,7 @@ object Main {
       ...
       +--------+----------+--------------------+
      */
-    val distances: Dataset[Row] = predictions.map( row => {
+    var distances: Dataset[Row] = predictions.map( row => {
       val prediction:   Int    = row.getInt(2)        // Cluster prediction
       val featuresVect: Vector = row.getAs[Vector](1) // Normalized features
       val centersVect:  Vector = centers(prediction)  // Normalized cluster centers
@@ -232,9 +232,9 @@ object Main {
     //val closestPoints = distances.groupBy("prediction").min("distance")
     //closestPoints.show(10)
     val closestPoints = Window.partitionBy("prediction").orderBy(col("distance").asc)
-    distances.withColumn("row",row_number.over(closestPoints))
+    distances = distances.withColumn("row",row_number.over(closestPoints))
       .where($"row" === 1).drop("row")
-      .show()
+    distances.show()
 
 
 
@@ -244,7 +244,7 @@ object Main {
 
      */
     val gisJoins: Array[(String, Int)] = distances.select("gis_join").map(
-        row => (row.mkString, row.getInt(1))
+        row => (row.mkString, row.getInt(0))
     ).collect()
     gisJoins.foreach{ println }
 
