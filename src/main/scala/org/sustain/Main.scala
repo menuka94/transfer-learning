@@ -252,13 +252,13 @@ object Main {
     gisJoins.foreach( center => {
 
       val gisJoin: String = center._1
-      val gisJoinCollection: Dataset[Row] = collection.filter(col("gis_join") === gisJoin)
+      var gisJoinCollection: Dataset[Row] = collection.filter(col("gis_join") === gisJoin)
         .withColumnRenamed(REGRESSION_LABEL, "label")
 
       val assembler: VectorAssembler = new VectorAssembler()
         .setInputCols(REGRESSION_FEATURES)
         .setOutputCol("features")
-      assembler.transform(gisJoinCollection)
+      gisJoinCollection = assembler.transform(gisJoinCollection)
 
       // Split input into testing set and training set:
       // 80% training, 20% testing, with random seed of 42
