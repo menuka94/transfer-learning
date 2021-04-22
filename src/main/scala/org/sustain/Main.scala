@@ -243,7 +243,7 @@ object Main {
     /* Extract and collect center gisjoins and the predicted cluster
 
      */
-    val gisJoins: Array[(String, Int)] = distances.select("gis_join").map(
+    val gisJoins: Array[(String, Int)] = distances.select("gis_join", "prediction").map(
         row => ( row.getString(0), row.getInt(1) )
     ).collect()
     gisJoins.foreach{ println }
