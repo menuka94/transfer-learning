@@ -244,7 +244,7 @@ object Main {
 
      */
     val gisJoins: Array[(String, Int)] = distances.select("gis_join").map(
-        row => (row.mkString, row.getInt(0))
+        row => (row.mkString, row.getInt(1))
     ).collect()
     gisJoins.foreach{ println }
 
