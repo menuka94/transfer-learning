@@ -20,6 +20,9 @@ import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.{DataFrame, RowFactory}
 import org.apache.spark.sql.functions.{col, min, row_number}
 import org.apache.spark.sql.types.{ArrayType, DataTypes, FloatType}
+import org.apache.spark.ml.regression.LinearRegression
+import org.apache.spark.ml.regression.LinearRegressionModel
+import org.apache.spark.ml.evaluation.RegressionEvaluator
 
 import java.util
 import java.util.List
@@ -217,13 +220,13 @@ object Main {
 
     /* Partition by prediction, find the minimum distance value, and pair back with original dataframe.
       +--------+----------+--------------------+
-      | GISJOIN|prediction|            distance|
+      |gis_join|prediction|            distance|
       +--------+----------+--------------------+
-      |G2101010|         1|1.491467328893098...|
-      |G5400570|         3|1.663968354711193...|
-      |G3400370|         4|4.526691617257419E-6|
-      |G3800230|         2|2.824090945215774E-8|
-      |G4000170|         0|5.302094676808709E-9|
+      |G2001630|         1|5.760295484876104E-7|
+      |G4601270|         3|3.222216079740129...|
+      |G1201050|         4|1.863697172494980...|
+      |G2800330|         2|6.529902553778138E-7|
+      |G3900550|         0| 8.22412844134513E-7|
       +--------+----------+--------------------+
      */
     //val closestPoints = distances.groupBy("prediction").min("distance")
@@ -232,6 +235,17 @@ object Main {
     distances.withColumn("row",row_number.over(closestPoints))
       .where($"row" === 1).drop("row")
       .show()
+
+
+
+    // --------------- Exhaustively Train K GISJoin Models ---------------------
+    val gisJoins: Array[String] = distances.select("gisJoin").map(
+      row => row.mkString
+    ).collect()
+    gisJoins.foreach{ println }
+
+
+
 
   }
 
