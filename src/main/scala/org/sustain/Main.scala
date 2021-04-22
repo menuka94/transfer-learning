@@ -155,11 +155,11 @@ object Main {
 
 
     /* KMeans clustering centers
-      [0.4287200541151439]
-      [0.21934450125060204]
-      [0.30615526209887767]
-      [0.1292813510233636]
-      [0.6361498632909213]
+      [0.5168304366844847]
+      [0.3680625754467921]
+      [0.6467503082873386]
+      [0.21075872847369662]
+      [0.8369497523000703]
      */
     val kMeans: KMeans = new KMeans().setK(K).setSeed(1L)
     val kMeansModel: KMeansModel = kMeans.fit(normalizedFeatures)
@@ -170,18 +170,18 @@ object Main {
 
     /* Get cluster predictions
       +--------+--------------------+----------+
-      | GISJOIN|            features|prediction|
+      |gis_join|            features|prediction|
       +--------+--------------------+----------+
-      |G2100890|[0.23429567913195...|         1|
-      |G2101610|[0.18957566363107...|         1|
-      |G1300530|[0.2815345863204805]|         2|
-      |G2500190|[0.6192792094555318]|         4|
-      |G2102250|[0.17265064909901...|         3|
-      |G2101770|[0.18611703158302...|         1|
-      |G3900210|[0.29635729509784...|         2|
-      |G2100670|[0.28245495059097...|         2|
-      |G3901690|[0.28693082735903...|         2|
-      |G3900170|[0.35486339856616...|         2|
+      |G4804230|[0.6709129511677282]|         2|
+      |G5600390|[0.3949044585987261]|         1|
+      |G1701150|[0.4033970276008492]|         1|
+      |G0601030|[0.6963906581740976]|         2|
+      |G3701230|[0.6326963906581741]|         2|
+      |G3700690|[0.6602972399150743]|         2|
+      |G3701070|[0.6624203821656051]|         2|
+      |G4803630|[0.5732484076433121]|         0|
+      |G5108200| [0.535031847133758]|         0|
+      |G4801170|[0.46496815286624...|         0|
       +--------+--------------------+----------+
      */
     val predictions: Dataset[Row] = kMeansModel.transform(normalizedFeatures)
@@ -204,7 +204,6 @@ object Main {
       |G3900170|         2| 0.01836537152962727|
       +--------+----------+--------------------+
      */
-    /*
     val distances: Dataset[Row] = predictions.map( row => {
       val prediction:   Int    = row.getInt(2)        // Cluster prediction
       val featuresVect: Vector = row.getAs[Vector](1) // Normalized features
@@ -212,11 +211,9 @@ object Main {
       val distance = Vectors.sqdist(featuresVect, centersVect) // Squared dist between features and cluster centers
 
       (row.getString(0), row.getInt(2), distance) // (String, Int, Double)
-    }).toDF("GISJOIN", "prediction", "distance").as("distances")
+    }).toDF("gis_join", "prediction", "distance").as("distances")
     distances.show(100)
     distances.columns.foreach{ println }
-     */
-
 
     /* Partition by prediction, find the minimum distance value, and pair back with original dataframe.
       +--------+----------+--------------------+
