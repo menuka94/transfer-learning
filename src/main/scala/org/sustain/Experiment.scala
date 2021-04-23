@@ -217,9 +217,9 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
     for (i <- regressionModels.indices) {
       val center: (String, Int) = gisJoins(i)
       val gisJoin: String = center._1
-      val regression: Regression = new Regression(sparkSession, gisJoin)
+      val regression: Regression = new Regression(gisJoin)
       regressionModels(i) = regression
-      regression.run()
+      regression.start()
     }
 
     try {

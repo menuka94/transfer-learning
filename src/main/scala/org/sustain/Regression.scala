@@ -1,21 +1,41 @@
 package org.sustain
 
 import com.mongodb.spark.MongoSpark
+import org.apache.spark.SparkConf
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
-class Regression(sparkSession: SparkSession, gisJoinC: String) extends Thread with Serializable {
+class Regression(gisJoinC: String) extends Thread with Serializable {
 
   val gisJoin: String = gisJoinC
   val REGRESSION_FEATURES: Array[String] = Array("year_month_day_hour")
   val REGRESSION_LABEL: String = "temp_surface_level_kelvin"
   val linearRegression: LinearRegression = new LinearRegression()
+  val SPARK_MASTER: String = "spark://lattice-100:8079"
+  val APP_NAME: String = "Transfer Learning"
+  val MONGO_URI: String = "mongodb://lattice-100:27018/"
+  val MONGO_DB: String = "sustaindb"
+  val MONGO_COLLECTION: String = "noaa_nam"
 
   def train() {
     println("\n\n>>> Fitting model for GISJoin " + gisJoin)
+
+    val conf: SparkConf = new SparkConf()
+      .setMaster(SPARK_MASTER)
+      .setAppName(APP_NAME + " " + gisJoin)
+      .set("spark.executor.cores", "2")
+      .set("spark.executor.memory", "1G")
+      .set("spark.mongodb.input.uri", MONGO_URI)
+      .set("spark.mongodb.input.database", MONGO_DB)
+      .set("spark.mongodb.input.collection", MONGO_COLLECTION)
+
+    // Create the SparkSession and ReadConfig
+    val sparkSession: SparkSession = SparkSession.builder()
+      .config(conf)
+      .getOrCreate() // For the $()-referenced columns
 
     /* Read collection into a DataSet[Row], dropping null rows
       +--------+-------------------+--------+-------------------------+
