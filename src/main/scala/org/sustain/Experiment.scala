@@ -255,6 +255,8 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       allRegressionModels(i) = regression
     }
 
+    println("\n\n>>> Training remaining " + allRegressionModels.length + " models")
+
     try {
       // Kick off training of LR models for center GISJoins
       for (i <- allRegressionModels.indices) {

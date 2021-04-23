@@ -70,7 +70,7 @@ object Main {
     val t0 = System.nanoTime()
     val result = block    // call-by-name
     val t1 = System.nanoTime()
-    println("\n\n>>> Elapsed time: " + ( (t1 - t0) / 10E9 )  + " seconds") // Convert nanoseconds to seconds
+    println("\n\n>>> Elapsed time: " + ( (t1 - t0) / 10E8 )  + " seconds") // Convert nanoseconds to seconds
     result
   }
 
