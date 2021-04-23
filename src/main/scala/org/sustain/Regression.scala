@@ -80,6 +80,8 @@ class Regression(gisJoinC: String, clusterIdC: Int) extends Thread with Serializ
     val lrPredictions: DataFrame = lrModel.transform(test)
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(lrPredictions))
+
+    sparkSession.close()
   }
 
   /**
