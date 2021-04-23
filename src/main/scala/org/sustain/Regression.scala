@@ -29,8 +29,8 @@ class Regression(gisJoinC: String, clusterIdC: Int) extends Thread with Serializ
     val conf: SparkConf = new SparkConf()
       .setMaster(SPARK_MASTER)
       .setAppName(APP_NAME + " " + gisJoin)
-      .set("spark.executor.cores", "2")
-      .set("spark.executor.memory", "1G")
+      .set("spark.executor.cores", "4")
+      .set("spark.executor.memory", "8G")
       .set("spark.mongodb.input.uri", MONGO_URI)
       .set("spark.mongodb.input.database", MONGO_DB)
       .set("spark.mongodb.input.collection", MONGO_COLLECTION)
@@ -81,7 +81,6 @@ class Regression(gisJoinC: String, clusterIdC: Int) extends Thread with Serializ
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(lrPredictions))
 
-    sparkSession.close()
   }
 
   /**
