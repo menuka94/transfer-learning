@@ -30,7 +30,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
   val CLUSTERING_TIMESTEP: Long = 0
   val sparkSession: SparkSession = sparkSessionC
 
-  def cluster(): Dataset[Row] = {
+  def cluster(): Array[String] = {
 
     import sparkSession.implicits._
 
@@ -202,21 +202,14 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       .where($"row" === 1).drop("row")
     distances.show()
 
-    distances // Return the final Dataset[Row]
+    distances.collect().map(row => row.getString(0)) // Return the final Dataset[Row]
   }
 
-  def trainCenters(centers: Dataset[Row]): Unit = {
+  def trainCenters(centers: Array[String]): Unit = {
 
-    import sparkSession.implicits._
-
-    val gisJoins: Array[(String, Int)] = centers.select("gis_join", "prediction").collect().map(
-      center => ( center.getString(0), center.getInt(1) )
-    )
-
-    val regressionModels: Array[Regression] = new Array[Regression](gisJoins.length)
+    val regressionModels: Array[Regression] = new Array[Regression](centers.length)
     for (i <- regressionModels.indices) {
-      val center: (String, Int) = gisJoins(i)
-      val gisJoin: String = center._1
+      val gisJoin: String = centers(i)
       val regression: Regression = new Regression(gisJoin)
       regressionModels(i) = regression
       regression.start()
@@ -229,8 +222,6 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
     } catch {
       case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
     }
-
-
   }
 
 }
