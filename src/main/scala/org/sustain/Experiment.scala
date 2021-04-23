@@ -249,8 +249,8 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
     val allRegressionModels: Array[Regression] = new Array[Regression](allGisJoins.length)
     for (i <- allRegressionModels.indices) {
-      val gisJoin: String = gisJoinCenters(i)._1
-      val clusterId: Int = gisJoinCenters(i)._2
+      val gisJoin: String = allGisJoins(i)._1
+      val clusterId: Int = allGisJoins(i)._2
       val regression: Regression = new Regression(gisJoin, clusterId)
       allRegressionModels(i) = regression
     }
