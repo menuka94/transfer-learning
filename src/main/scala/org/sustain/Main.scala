@@ -80,7 +80,7 @@ object Main {
     val experiment: Experiment = new Experiment(sparkConnector, collection)
     time {
       val clusterCenters: Dataset[Row] = experiment.cluster()
-      val trainedCenters: Dataset[Row] = experiment.trainCenters(clusterCenters)
+      experiment.trainCenters(clusterCenters)
     }
   }
 
