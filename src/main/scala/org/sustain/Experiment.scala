@@ -184,7 +184,6 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       (row.getString(0), row.getInt(2), distance) // (String, Int, Double)
     }).toDF("gis_join", "prediction", "distance").as("distances")
     distances.show(100)
-    distances.columns.foreach{ println }
 
     /* Partition by prediction, find the minimum distance value, and pair back with original dataframe.
       +--------+----------+--------------------+
@@ -241,10 +240,37 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
     println("\n\n>>> Initial center models done training\n")
 
-
     // Sort trained models by their predicted cluster ID
     scala.util.Sorting.quickSort(regressionModels)
 
+    val allGisJoins: Array[(String, Int)] = distances.map(row => {
+      (row.getString(0), row.getInt(1))
+    }).collect()
+
+    val allRegressionModels: Array[Regression] = new Array[Regression](allGisJoins.length)
+    for (i <- allRegressionModels.indices) {
+      val gisJoin: String = gisJoinCenters(i)._1
+      val clusterId: Int = gisJoinCenters(i)._2
+      val regression: Regression = new Regression(gisJoin, clusterId)
+      regressionModels(i) = regression
+    }
+
+    try {
+      // Kick off training of LR models for center GISJoins
+      for (i <- regressionModels.indices) {
+        allRegressionModels(i).start()
+      }
+
+      // Wait until models are done being trained
+      for (i <- regressionModels.indices) {
+        allRegressionModels(i).join()
+      }
+
+    } catch {
+      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
+    }
+
+    /*
     distances.foreach(row => {
       val gisJoin: String = row.getString(0)
       val prediction: Int = row.getInt(1)
@@ -252,6 +278,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       val newModel: Regression = new Regression(gisJoin, prediction)
       newModel.transferAndTrain(trainedModel.linearRegression)
     })
+    */
 
   }
 
@@ -263,11 +290,12 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       val gisJoin: String = gisJoinCenters(i)._1
       val clusterId: Int = gisJoinCenters(i)._2
       val regression: Regression = new Regression(gisJoin, clusterId)
+      val trainedModel: Regression = regressionModels(clusterId)
+      regression.linearRegression = trainedModel.linearRegression.copy(trainedModel.linearRegression.extractParamMap())
       regressionModels(i) = regression
-      regression.start()
     }
 
-    // Wait until training for center GISJoin models is completed
+    // Wait until training for all GISJoin models is completed
     try {
       for (i <- regressionModels.indices) {
         regressionModels(i).wait()
