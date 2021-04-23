@@ -184,7 +184,7 @@ class Experiment(sparkSession: SparkSession, collectionC: Dataset[Row]) extends 
       .where($"row" === 1).drop("row")
     distances.show()
 
-    distances
+    distances // Return the final Dataset[Row]
   }
 
   def trainCenters(centers: Dataset[Row]): Unit = {
@@ -201,12 +201,9 @@ class Experiment(sparkSession: SparkSession, collectionC: Dataset[Row]) extends 
       val gisJoin: String = center._1
       val regression: Regression = new Regression(gisJoin, collection)
       regressionModels(i) = regression
-      regression.run()
+      regression.train()
     }
 
-    regressionModels.foreach(
-      model => model.wait()
-    )
   }
 
 }
