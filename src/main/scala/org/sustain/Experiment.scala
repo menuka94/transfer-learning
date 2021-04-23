@@ -20,7 +20,8 @@ import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import java.util
 import java.util.List
 
-class Experiment(sparkSession: SparkSession, collectionC: Dataset[Row]) {
+@SerialVersionUID(114L)
+class Experiment(sparkSession: SparkSession, collectionC: Dataset[Row]) extends Serializable {
 
   /* Global Variables */
   val collection: Dataset[Row] = collectionC
