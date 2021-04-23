@@ -239,6 +239,9 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
     }
 
+    println("\n\n>>> Initial center models done training\n")
+
+    /*
     // Sort trained models by their predicted cluster ID
     scala.util.Sorting.quickSort(regressionModels)
 
@@ -249,6 +252,8 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       val newModel: Regression = new Regression(gisJoin, prediction)
       newModel.transferAndTrain(trainedModel.linearRegression)
     })
+    */
+
 
 
   }
