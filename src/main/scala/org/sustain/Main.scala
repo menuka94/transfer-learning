@@ -88,7 +88,7 @@ object Main {
     val t0 = System.nanoTime()
     val result = block    // call-by-name
     val t1 = System.nanoTime()
-    println("Elapsed time: " + ((t1 - t0) / (1000 * 1000))  + "seconds")
+    println("\n\n>>> Elapsed time: " + (t1 - t0)  + " nanoseconds")
     result
   }
 
