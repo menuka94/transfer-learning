@@ -97,7 +97,7 @@ class Regression(gisJoinC: String, clusterIdC: Int) extends Thread with Serializ
       0
     else if (this.clusterId > that.clusterId)
       1
-    else if (this.clusterId < that.clusterId)
+    else
       -1
   }
 }
