@@ -24,7 +24,7 @@ import java.util.List
 class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
   /* Class Variables */
-  val K: Int = 5
+  val K: Int = 56
   val CLUSTERING_FEATURES: Array[String] = Array("temp_surface_level_kelvin")
   val CLUSTERING_YEAR_MONTH_DAY_HOUR: Long = 2010010100
   val CLUSTERING_TIMESTEP: Long = 0
@@ -240,6 +240,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
     println("\n\n>>> Initial center models done training\n")
 
+    /*
     // Sort trained models by their predicted cluster ID
     scala.util.Sorting.quickSort(regressionModels)
 
@@ -252,6 +253,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       val gisJoin: String = allGisJoins(i)._1
       val clusterId: Int = allGisJoins(i)._2
       val regression: Regression = new Regression(gisJoin, clusterId)
+      regression.linearRegression =
       allRegressionModels(i) = regression
     }
 
@@ -271,6 +273,8 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
     } catch {
       case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
     }
+
+     */
 
     /*
     distances.foreach(row => {
