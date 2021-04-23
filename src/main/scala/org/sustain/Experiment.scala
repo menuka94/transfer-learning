@@ -287,6 +287,24 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       println("]")
     }
 
+    modelQueues.foreach(
+      queue => {
+        try {
+
+          queue.foreach(
+            model => model.start()
+          )
+
+          queue.foreach(
+            model => model.join()
+          )
+
+        } catch {
+          case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
+        }
+      }
+    )
+
 
     /*
     // Create new Regression model and initialize it with the already-trained model
