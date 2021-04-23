@@ -17,6 +17,7 @@ import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
+import scala.collection.mutable.ListBuffer
 
 import java.util
 import java.util.List
@@ -241,10 +242,53 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
     println("\n\n>>> Initial center models done training\n")
 
-
     // Sort trained models by their predicted cluster ID
     scala.util.Sorting.quickSort(regressionModels)
 
+    // Build k queues of models to be trained, 1 queue per cluster
+    // For 3192 GISJoins this is sqrt(3192) = 56 queues, each with ~57 models to be trained (since cluster sizes vary,
+    // some queues may be shorter and others larger)
+    val modelQueues: Array[ListBuffer[Regression]] = new Array[ListBuffer[Regression]](K)
+    gisJoinCenters.foreach( // Iterates over k centers
+      center => {
+        val centerGisJoin: String = center._1
+        val clusterId: Int = center._2
+        val trainedRegression: Regression = regressionModels(clusterId)
+        val trainedModel: LinearRegression = trainedRegression.linearRegression
+
+        // Create a new Queue
+        val queue: ListBuffer[Regression] = new ListBuffer[Regression]()
+        modelQueues(clusterId) = queue
+
+        // Get only gisJoins for this clusterId and that are not the center gisJoin, and create regression models from
+        // the trained centroid model, adding to the model queue
+        predictions.select("gis_join", "prediction")
+          .filter( col("prediction") === clusterId && col("gis_join") =!= centerGisJoin )
+          .collect()
+          .foreach( row => { // Iterates over cluster_size gisJoins
+            val gisJoin: String = row.getString(0)
+            val clusterId: Int  = row.getInt(1)
+
+            val regression: Regression = new Regression(gisJoin, clusterId)
+            regression.linearRegression = trainedModel.copy(new ParamMap())
+            queue += regression
+          })
+      }
+    )
+
+    // --- DEBUGGING ---
+    println("\n\n>>> MODEL QUEUES <<<\n")
+    for (i <- modelQueues.indices) {
+      val queue: ListBuffer[Regression] = modelQueues(i)
+      printf("Queue [%d] (Size %d): [ ", i, queue.length)
+      for (j <- queue.indices) {
+        printf("%s ", queue(j))
+      }
+      println("]")
+    }
+
+
+    /*
     // Create new Regression model and initialize it with the already-trained model
     val testGisJoin: String = "G0601030"
     val testClusterId: Int = 2
@@ -253,8 +297,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
     newRegressionModel.linearRegression = trainedRegression.linearRegression.copy(new ParamMap())
 
     println("\n\n>>> New Regression Model's ParamMap: " + newRegressionModel.linearRegression.extractParamMap().toString())
-
-
+    */
     /*
     // Sort trained models by their predicted cluster ID
 
@@ -291,41 +334,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
      */
 
-    /*
-    distances.foreach(row => {
-      val gisJoin: String = row.getString(0)
-      val prediction: Int = row.getInt(1)
-      val trainedModel: Regression = regressionModels(prediction)
-      val newModel: Regression = new Regression(gisJoin, prediction)
-      newModel.transferAndTrain(trainedModel.linearRegression)
-    })
-    */
 
-  }
-
-  def trainCenters(gisJoinCenters: Array[(String, Int)]): Array[Regression] = {
-
-    // Kick off training on LR models for center GISJoins
-    val regressionModels: Array[Regression] = new Array[Regression](gisJoinCenters.length)
-    for (i <- regressionModels.indices) {
-      val gisJoin: String = gisJoinCenters(i)._1
-      val clusterId: Int = gisJoinCenters(i)._2
-      val regression: Regression = new Regression(gisJoin, clusterId)
-      val trainedModel: Regression = regressionModels(clusterId)
-      regression.linearRegression = trainedModel.linearRegression.copy(trainedModel.linearRegression.extractParamMap())
-      regressionModels(i) = regression
-    }
-
-    // Wait until training for all GISJoin models is completed
-    try {
-      for (i <- regressionModels.indices) {
-        regressionModels(i).wait()
-      }
-    } catch {
-      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
-    }
-
-    regressionModels
   }
 
 }

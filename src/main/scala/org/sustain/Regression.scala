@@ -82,16 +82,21 @@ class Regression(gisJoinC: String, clusterIdC: Int) extends Thread with Serializ
     println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(lrPredictions))
   }
 
-  def transferAndTrain(trainedLRModel: LinearRegression): Unit = {
-    println("\n\n>>> Transferring model for GISJoin " + gisJoin)
-    linearRegression = trainedLRModel.copy(trainedLRModel.extractParamMap())
-    train()
-  }
-
+  /**
+   * Launched by the thread, executes train()
+   */
   override def run(): Unit = {
     train()
   }
 
+  /**
+   * Allows ordering of Regression objects, sorted by ascending cluster id which the
+   * gisjoin belongs to.
+   * @param that The other Regression instance we are comparing ourselves to
+   * @return 0 if the cluster ids are equal, 1 if our cluster id is greater than the other Regression instance, and we
+   *         should come after "that", and -1 if our cluster id is less than the other Regression instance, and we
+   *         should come before "that".
+   */
   override def compare(that: Regression): Int = {
     if (this.clusterId == that.clusterId)
       0
@@ -99,5 +104,13 @@ class Regression(gisJoinC: String, clusterIdC: Int) extends Thread with Serializ
       1
     else
       -1
+  }
+
+  /**
+   * Overrides the toString method, for debugging model queues
+   * @return String representation of Regression
+   */
+  override def toString: String = {
+    "{%s|%d}".format(gisJoin, clusterId)
   }
 }

@@ -60,8 +60,6 @@ object Main {
     val experiment: Experiment = new Experiment(sparkConnector)
     println("\n\n>>> Starting nanosecond timer\n")
     time { experiment.transferLearning() }
-    //val clusterCenters: Array[String] = time { experiment.cluster() }
-    //val regressionModels: Array[Regression] = time { experiment.trainCenters(clusterCenters) }
 
 
   }
