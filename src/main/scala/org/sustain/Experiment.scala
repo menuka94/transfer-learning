@@ -201,7 +201,11 @@ class Experiment(sparkSession: SparkSession, collectionC: Dataset[Row]) extends 
       val gisJoin: String = center._1
       val regression: Regression = new Regression(gisJoin, collection)
       regressionModels(i) = regression
-      regression.train()
+      regression.run()
+    }
+
+    for (i <- regressionModels.indices) {
+      regressionModels(i).wait()
     }
 
   }

@@ -6,7 +6,7 @@ import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrame, Dataset, Row}
 
-class Regression(gisJoinC: String, collectionC: Dataset[Row]) {
+class Regression(gisJoinC: String, collectionC: Dataset[Row]) extends Thread {
 
   val gisJoin: String = gisJoinC
   val collection: Dataset[Row] = collectionC
@@ -38,5 +38,9 @@ class Regression(gisJoinC: String, collectionC: Dataset[Row]) {
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> TEST SET RMSE: " + evaluator.evaluate(lrPredictions))
 
+  }
+
+  override def run(): Unit = {
+    train()
   }
 }
