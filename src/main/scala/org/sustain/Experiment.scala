@@ -252,17 +252,17 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       val gisJoin: String = gisJoinCenters(i)._1
       val clusterId: Int = gisJoinCenters(i)._2
       val regression: Regression = new Regression(gisJoin, clusterId)
-      regressionModels(i) = regression
+      allRegressionModels(i) = regression
     }
 
     try {
       // Kick off training of LR models for center GISJoins
-      for (i <- regressionModels.indices) {
+      for (i <- allRegressionModels.indices) {
         allRegressionModels(i).start()
       }
 
       // Wait until models are done being trained
-      for (i <- regressionModels.indices) {
+      for (i <- allRegressionModels.indices) {
         allRegressionModels(i).join()
       }
 
