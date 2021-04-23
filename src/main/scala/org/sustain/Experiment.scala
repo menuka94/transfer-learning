@@ -242,12 +242,22 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
     println("\n\n>>> Initial center models done training\n")
 
 
-    val paramMap: ParamMap = regressionModels(0).linearRegression.extractParamMap()
-    println("\n>>> ParamMap toString(): " + paramMap.toString())
+    // Sort trained models by their predicted cluster ID
+    scala.util.Sorting.quickSort(regressionModels)
+
+    // Create new Regression model and initialize it with the already-trained model
+    val testGisJoin: String = "G0601030"
+    val testClusterId: Int = 2
+    val newRegressionModel: Regression = new Regression(testGisJoin, testClusterId)
+    val trainedRegression: Regression = regressionModels(testClusterId)
+    newRegressionModel.linearRegression = trainedRegression.linearRegression.copy(new ParamMap())
+
+    println("\n\n>>> New Regression Model's ParamMap: " + newRegressionModel.linearRegression.extractParamMap().toString())
+
 
     /*
     // Sort trained models by their predicted cluster ID
-    scala.util.Sorting.quickSort(regressionModels)
+
 
     val allGisJoins: Array[(String, Int)] = predictions.map(row => {
       (row.getString(0), row.getInt(2))
