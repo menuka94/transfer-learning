@@ -79,7 +79,7 @@ class Regression(gisJoinC: String, clusterIdC: Int) extends Thread with Serializ
     // Use the model on the testing set, and evaluate results
     val lrPredictions: DataFrame = lrModel.transform(test)
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
-    println("\n\n>>> TEST SET RMSE: " + evaluator.evaluate(lrPredictions))
+    println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(lrPredictions))
   }
 
   def transferAndTrain(trainedLRModel: LinearRegression): Unit = {

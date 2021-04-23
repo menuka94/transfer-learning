@@ -215,21 +215,26 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       row => (row.getString(0), row.getInt(1))
     )
 
-    // Kick off training on LR models for center GISJoins
+    // Create LR models for center GISJoins
     val regressionModels: Array[Regression] = new Array[Regression](gisJoinCenters.length)
     for (i <- regressionModels.indices) {
       val gisJoin: String = gisJoinCenters(i)._1
       val clusterId: Int = gisJoinCenters(i)._2
       val regression: Regression = new Regression(gisJoin, clusterId)
       regressionModels(i) = regression
-      regression.start()
     }
 
-    // Wait until training for center GISJoin models is completed
     try {
+      // Kick off training of LR models for center GISJoins
+      for (i <- regressionModels.indices) {
+        regressionModels(i).start()
+      }
+
+      // Wait until models are done being trained
       for (i <- regressionModels.indices) {
         regressionModels(i).wait()
       }
+
     } catch {
       case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
     }
