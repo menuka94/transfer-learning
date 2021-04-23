@@ -15,6 +15,7 @@ import com.mongodb.spark._
 import com.mongodb.spark.MongoSpark
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 import java.util
@@ -24,7 +25,7 @@ import java.util.List
 class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
   /* Class Variables */
-  val K: Int = 56
+  val K: Int = 5 // sqrt(3192) = 56
   val CLUSTERING_FEATURES: Array[String] = Array("temp_surface_level_kelvin")
   val CLUSTERING_YEAR_MONTH_DAY_HOUR: Long = 2010010100
   val CLUSTERING_TIMESTEP: Long = 0
@@ -239,6 +240,10 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
     }
 
     println("\n\n>>> Initial center models done training\n")
+
+
+    val paramMap: ParamMap = regressionModels(0).linearRegression.extractParamMap()
+    println("\n>>> ParamMap toString(): " + paramMap.toString())
 
     /*
     // Sort trained models by their predicted cluster ID
