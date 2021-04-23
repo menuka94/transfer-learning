@@ -30,7 +30,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
   val CLUSTERING_TIMESTEP: Long = 0
   val sparkSession: SparkSession = sparkSessionC
 
-  def cluster(): Array[String] = {
+  def transferLearning(): Unit = {
 
     import sparkSession.implicits._
 
@@ -202,19 +202,30 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       .where($"row" === 1).drop("row")
     distances.show()
 
-    distances.collect().map(row => row.getString(0)) // Return the final Dataset[Row]
-  }
+    /* Collect into Array[(<gis_join>, <prediction>)]
+      [
+        ("G2001630", 1),
+        ("G4601270", 3),
+        ("G1201050", 4),
+        ("G2800330", 2),
+        ("G3900550", 0),
+      ]
+     */
+    val gisJoinCenters: Array[(String, Int)] = distances.collect().map(
+      row => (row.getString(0), row.getInt(1))
+    )
 
-  def trainCenters(centers: Array[String]): Unit = {
-
-    val regressionModels: Array[Regression] = new Array[Regression](centers.length)
+    // Kick off training on LR models for center GISJoins
+    val regressionModels: Array[Regression] = new Array[Regression](gisJoinCenters.length)
     for (i <- regressionModels.indices) {
-      val gisJoin: String = centers(i)
-      val regression: Regression = new Regression(gisJoin)
+      val gisJoin: String = gisJoinCenters(i)._1
+      val clusterId: Int = gisJoinCenters(i)._2
+      val regression: Regression = new Regression(gisJoin, clusterId)
       regressionModels(i) = regression
       regression.start()
     }
 
+    // Wait until training for center GISJoin models is completed
     try {
       for (i <- regressionModels.indices) {
         regressionModels(i).wait()
@@ -222,6 +233,43 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
     } catch {
       case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
     }
+
+    // Sort trained models by their predicted cluster ID
+    scala.util.Sorting.quickSort(regressionModels)
+
+    distances.foreach(row => {
+      val gisJoin: String = row.getString(0)
+      val prediction: Int = row.getInt(1)
+      val trainedModel: Regression = regressionModels(prediction)
+      val newModel: Regression = new Regression(gisJoin, prediction)
+      newModel.transferAndTrain(trainedModel.linearRegression)
+    })
+
+
+  }
+
+  def trainCenters(gisJoinCenters: Array[(String, Int)]): Array[Regression] = {
+
+    // Kick off training on LR models for center GISJoins
+    val regressionModels: Array[Regression] = new Array[Regression](gisJoinCenters.length)
+    for (i <- regressionModels.indices) {
+      val gisJoin: String = gisJoinCenters(i)._1
+      val clusterId: Int = gisJoinCenters(i)._2
+      val regression: Regression = new Regression(gisJoin, clusterId)
+      regressionModels(i) = regression
+      regression.start()
+    }
+
+    // Wait until training for center GISJoin models is completed
+    try {
+      for (i <- regressionModels.indices) {
+        regressionModels(i).wait()
+      }
+    } catch {
+      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
+    }
+
+    regressionModels
   }
 
 }

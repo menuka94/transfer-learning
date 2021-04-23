@@ -58,8 +58,10 @@ object Main {
       .getOrCreate() // For the $()-referenced columns
 
     val experiment: Experiment = new Experiment(sparkConnector)
-    val clusterCenters: Array[String] = time { experiment.cluster() }
-    time { experiment.trainCenters(clusterCenters) }
+    time { experiment.transferLearning() }
+    //val clusterCenters: Array[String] = time { experiment.cluster() }
+    //val regressionModels: Array[Regression] = time { experiment.trainCenters(clusterCenters) }
+
 
   }
 

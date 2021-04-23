@@ -7,13 +7,16 @@ import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.ml.PipelineModel
+import org.apache.spark.ml.param.ParamMap
 
-class Regression(gisJoinC: String) extends Thread with Serializable {
+class Regression(gisJoinC: String, clusterIdC: Int) extends Thread with Serializable with Ordered[Regression] {
 
   val gisJoin: String = gisJoinC
+  val clusterId: Int = clusterIdC
   val REGRESSION_FEATURES: Array[String] = Array("year_month_day_hour")
   val REGRESSION_LABEL: String = "temp_surface_level_kelvin"
-  val linearRegression: LinearRegression = new LinearRegression()
+  var linearRegression: LinearRegression = new LinearRegression()
   val SPARK_MASTER: String = "spark://lattice-100:8079"
   val APP_NAME: String = "Transfer Learning"
   val MONGO_URI: String = "mongodb://lattice-100:27018/"
@@ -77,10 +80,24 @@ class Regression(gisJoinC: String) extends Thread with Serializable {
     val lrPredictions: DataFrame = lrModel.transform(test)
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> TEST SET RMSE: " + evaluator.evaluate(lrPredictions))
+  }
 
+  def transferAndTrain(trainedLRModel: LinearRegression): Unit = {
+    println("\n\n>>> Transferring model for GISJoin " + gisJoin)
+    linearRegression = trainedLRModel.copy(trainedLRModel.extractParamMap())
+    train()
   }
 
   override def run(): Unit = {
     train()
+  }
+
+  override def compare(that: Regression): Int = {
+    if (this.clusterId == that.clusterId)
+      0
+    else if (this.clusterId > that.clusterId)
+      1
+    else if (this.clusterId < that.clusterId)
+      -1
   }
 }
