@@ -243,8 +243,8 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
     // Sort trained models by their predicted cluster ID
     scala.util.Sorting.quickSort(regressionModels)
 
-    val allGisJoins: Array[(String, Int)] = distances.map(row => {
-      (row.getString(0), row.getInt(1))
+    val allGisJoins: Array[(String, Int)] = predictions.map(row => {
+      (row.getString(0), row.getInt(2))
     }).collect()
 
     val allRegressionModels: Array[Regression] = new Array[Regression](allGisJoins.length)
