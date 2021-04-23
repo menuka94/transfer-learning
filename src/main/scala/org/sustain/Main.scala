@@ -58,6 +58,7 @@ object Main {
       .getOrCreate() // For the $()-referenced columns
 
     val experiment: Experiment = new Experiment(sparkConnector)
+    println("\n\n>>> Starting nanosecond timer\n")
     time { experiment.transferLearning() }
     //val clusterCenters: Array[String] = time { experiment.cluster() }
     //val regressionModels: Array[Regression] = time { experiment.trainCenters(clusterCenters) }
@@ -69,7 +70,7 @@ object Main {
     val t0 = System.nanoTime()
     val result = block    // call-by-name
     val t1 = System.nanoTime()
-    println("\n\n>>> Elapsed time: " + ( ( (t1 - t0) / 1000) / 1000 )  + " seconds")
+    println("\n\n>>> Elapsed time: " + ( (t1 - t0) / 10E9 )  + " seconds") // Convert nanoseconds to seconds
     result
   }
 
