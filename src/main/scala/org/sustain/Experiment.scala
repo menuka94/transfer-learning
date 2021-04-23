@@ -232,7 +232,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
       // Wait until models are done being trained
       for (i <- regressionModels.indices) {
-        regressionModels(i).wait()
+        regressionModels(i).join()
       }
 
     } catch {
