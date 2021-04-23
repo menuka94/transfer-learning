@@ -21,18 +21,38 @@ import java.util
 import java.util.List
 
 @SerialVersionUID(114L)
-class Experiment(sparkSession: SparkSession, collectionC: Dataset[Row]) extends Serializable {
+class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
   /* Class Variables */
-  val collection: Dataset[Row] = collectionC
   val K: Int = 5
   val CLUSTERING_FEATURES: Array[String] = Array("temp_surface_level_kelvin")
   val CLUSTERING_YEAR_MONTH_DAY_HOUR: Long = 2010010100
   val CLUSTERING_TIMESTEP: Long = 0
+  val sparkSession: SparkSession = sparkSessionC
 
   def cluster(): Dataset[Row] = {
 
     import sparkSession.implicits._
+
+    /* Read collection into a DataSet[Row], dropping null rows
+      +--------+-------------------+--------+-------------------------+
+      |gis_join|year_month_day_hour|timestep|temp_surface_level_kelvin|
+      +--------+-------------------+--------+-------------------------+
+      |G4804230|         2010010100|       0|        281.4640808105469|
+      |G5600390|         2010010100|       0|        265.2140808105469|
+      |G1701150|         2010010100|       0|        265.7140808105469|
+      |G0601030|         2010010100|       0|        282.9640808105469|
+      |G3701230|         2010010100|       0|        279.2140808105469|
+      |G3700690|         2010010100|       0|        280.8390808105469|
+      |G3701070|         2010010100|       0|        280.9640808105469|
+      |G4803630|         2010010100|       0|        275.7140808105469|
+      |G5108200|         2010010100|       0|        273.4640808105469|
+      |G4801170|         2010010100|       0|        269.3390808105469|
+      +--------+-------------------+--------+-------------------------+
+     */
+    var collection: Dataset[Row] = MongoSpark.load(sparkSession)
+    collection = collection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
+      .na.drop()
 
     /* Take only 1 entry per GISJOIN across all timesteps for clustering
       +--------+-------------------------+
@@ -177,8 +197,6 @@ class Experiment(sparkSession: SparkSession, collectionC: Dataset[Row]) extends 
       |G3900550|         0| 8.22412844134513E-7|
       +--------+----------+--------------------+
      */
-    //val closestPoints = distances.groupBy("prediction").min("distance")
-    //closestPoints.show(10)
     val closestPoints = Window.partitionBy("prediction").orderBy(col("distance").asc)
     distances = distances.withColumn("row",row_number.over(closestPoints))
       .where($"row" === 1).drop("row")
@@ -199,14 +217,19 @@ class Experiment(sparkSession: SparkSession, collectionC: Dataset[Row]) extends 
     for (i <- regressionModels.indices) {
       val center: (String, Int) = gisJoins(i)
       val gisJoin: String = center._1
-      val regression: Regression = new Regression(gisJoin, collection)
+      val regression: Regression = new Regression(sparkSession, gisJoin)
       regressionModels(i) = regression
       regression.run()
     }
 
-    for (i <- regressionModels.indices) {
-      regressionModels(i).wait()
+    try {
+      for (i <- regressionModels.indices) {
+        regressionModels(i).wait()
+      }
+    } catch {
+      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
     }
+
 
   }
 

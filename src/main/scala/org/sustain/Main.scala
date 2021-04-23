@@ -57,27 +57,7 @@ object Main {
       .config(conf)
       .getOrCreate() // For the $()-referenced columns
 
-    /* Read collection into a DataSet[Row], dropping null rows
-      +--------+-------------------+--------+-------------------------+
-      |gis_join|year_month_day_hour|timestep|temp_surface_level_kelvin|
-      +--------+-------------------+--------+-------------------------+
-      |G4804230|         2010010100|       0|        281.4640808105469|
-      |G5600390|         2010010100|       0|        265.2140808105469|
-      |G1701150|         2010010100|       0|        265.7140808105469|
-      |G0601030|         2010010100|       0|        282.9640808105469|
-      |G3701230|         2010010100|       0|        279.2140808105469|
-      |G3700690|         2010010100|       0|        280.8390808105469|
-      |G3701070|         2010010100|       0|        280.9640808105469|
-      |G4803630|         2010010100|       0|        275.7140808105469|
-      |G5108200|         2010010100|       0|        273.4640808105469|
-      |G4801170|         2010010100|       0|        269.3390808105469|
-      +--------+-------------------+--------+-------------------------+
-     */
-    var collection: Dataset[Row] = MongoSpark.load(sparkConnector)
-    collection = collection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
-      .na.drop()
-
-    val experiment: Experiment = new Experiment(sparkConnector, collection)
+    val experiment: Experiment = new Experiment(sparkConnector)
     time {
       val clusterCenters: Dataset[Row] = experiment.cluster()
       experiment.trainCenters(clusterCenters)
