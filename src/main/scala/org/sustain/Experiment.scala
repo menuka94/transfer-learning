@@ -26,7 +26,7 @@ import java.util.List
 class Experiment(sparkSessionC: SparkSession) extends Serializable {
 
   /* Class Variables */
-  val K: Int = 5 // sqrt(3192) = 56
+  val K: Int = 56 // sqrt(3192) = 56
   val CLUSTERING_FEATURES: Array[String] = Array("temp_surface_level_kelvin")
   val CLUSTERING_YEAR_MONTH_DAY_HOUR: Long = 2010010100
   val CLUSTERING_TIMESTEP: Long = 0
