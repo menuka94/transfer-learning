@@ -257,31 +257,30 @@ class Experiment() extends Serializable {
     // For 3192 GISJoins this is sqrt(3192) = 56 queues, each with ~57 models to be trained (since cluster sizes vary,
     // some queues may be shorter and others larger)
     val clustersQueues: Array[ClusterLRModels] = new Array[ClusterLRModels](gisJoinCenters.length)
-    gisJoinCenters.foreach( // Iterates over k centers
-      center => {
-        val centerGisJoin: String = center._1
-        val clusterId: Int = center._2
-        val trainedRegression: CentroidModel = centroidModels(clusterId)
-        val trainedModel: LinearRegression = trainedRegression.linearRegression
-        val mongoRouterHost: String = mongosRouters(clusterId % mongosRouters.length)
+    for (i <- gisJoinCenters.indices) {
+      val center: (String, Int) = gisJoinCenters(i)
+      val centerGisJoin: String = center._1
+      val clusterId: Int = center._2
+      val trainedRegression: CentroidModel = centroidModels(clusterId)
+      val trainedModel: LinearRegression = trainedRegression.linearRegression
+      val mongoRouterHost: String = mongosRouters(clusterId % mongosRouters.length)
 
-        // Create a new Queue
-        val gisJoinList: ListBuffer[String] = new ListBuffer[String]()
+      // Create a new Queue
+      val gisJoinList: ListBuffer[String] = new ListBuffer[String]()
 
-        // Get only gisJoins for this clusterId and that are not the center gisJoin, and create regression models from
-        // the trained centroid model, adding to the model queue
-        predictions.select("gis_join", "prediction")
-          .filter(col("prediction") === clusterId && col("gis_join") =!= centerGisJoin)
-          .collect()
-          .foreach(row => { // Iterates over cluster_size gisJoins
-            gisJoinList += row.getString(0)
-          })
+      // Get only gisJoins for this clusterId and that are not the center gisJoin, and create regression models from
+      // the trained centroid model, adding to the model queue
+      predictions.select("gis_join", "prediction")
+        .filter(col("prediction") === clusterId && col("gis_join") =!= centerGisJoin)
+        .collect()
+        .foreach(row => { // Iterates over cluster_size gisJoins
+          gisJoinList += row.getString(0)
+        })
 
-        val clusterModels: ClusterLRModels = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database,
-          collection, clusterId, gisJoinList.toArray, trainedModel, regressionFeatures, regressionLabel)
-      }
-    )
-
+      val clusterModels: ClusterLRModels = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database,
+        collection, clusterId, gisJoinList.toArray, trainedModel, regressionFeatures, regressionLabel)
+      clustersQueues(i) = clusterModels
+    }
 
     // --- DEBUGGING ---
     println("\n\n>>> MODEL QUEUES <<<\n")
