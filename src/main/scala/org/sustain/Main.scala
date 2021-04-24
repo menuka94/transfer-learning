@@ -12,55 +12,30 @@
  * ----------------------------------------------- */
 package org.sustain
 
-import org.apache.spark.SparkConf
-import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
-import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
-import org.apache.spark.ml.linalg.Vectors
-import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.{DataFrame, Dataset, Row, RowFactory}
-import org.apache.spark.sql.functions.{col, min, row_number}
-import org.apache.spark.sql.types.{ArrayType, DataTypes, FloatType}
-import org.apache.spark.ml.regression.LinearRegression
-import org.apache.spark.ml.regression.LinearRegressionModel
-import org.apache.spark.ml.evaluation.RegressionEvaluator
-import com.mongodb.spark._
-import com.mongodb.spark.MongoSpark
-import org.apache.spark.ml.feature.VectorAssembler
-import org.apache.spark.ml.linalg.Vector
-import org.apache.spark.sql.{Dataset, Row, SparkSession}
-
-import java.util
-import java.util.List
-
 object Main {
 
   /* Global Variables */
   val SPARK_MASTER: String = "spark://lattice-100:8079"
   val APP_NAME: String = "Transfer Learning"
-  val MONGO_URI: String = "mongodb://lattice-100:27018/"
+  val MONGO_ROUTER_HOSTS: Array[String] = Array("lattice-100", "lattice-101", "lattice-102", "lattice-103", "lattice-104")
+  val MONGO_PORT: String = "27018"
   val MONGO_DB: String = "sustaindb"
   val MONGO_COLLECTION: String = "noaa_nam"
+  val CLUSTERING_FEATURES: Array[String] = Array("temp_surface_level_kelvin")
+  val CLUSTERING_TIMESTEP: Long = 0
+  val CLUSTERING_K: Int = 56 // sqrt(3192) = 56
+  val CLUSTERING_YEAR_MONTH_DAY_HOUR: Long = 2010010100
+  val REGRESSION_FEATURES: Array[String] = Array("year_month_day_hour")
+  val REGRESSION_LABEL: String = "temp_surface_level_kelvin"
 
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
-    val conf: SparkConf = new SparkConf()
-      .setMaster(SPARK_MASTER)
-      .setAppName(APP_NAME)
-      .set("spark.executor.cores", "4")
-      .set("spark.executor.memory", "8G")
-      .set("spark.mongodb.input.uri", MONGO_URI)
-      .set("spark.mongodb.input.database", MONGO_DB)
-      .set("spark.mongodb.input.collection", MONGO_COLLECTION)
 
-    // Create the SparkSession and ReadConfig
-    val sparkConnector: SparkSession = SparkSession.builder()
-      .config(conf)
-      .getOrCreate() // For the $()-referenced columns
-
-    val experiment: Experiment = new Experiment(sparkConnector)
+    val experiment: Experiment = new Experiment()
     println("\n\n>>> Starting nanosecond timer\n")
-    time { experiment.transferLearning() }
-
+    time { experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+      MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_YEAR_MONTH_DAY_HOUR, CLUSTERING_TIMESTEP, CLUSTERING_K,
+      REGRESSION_FEATURES, REGRESSION_LABEL) }
 
   }
 

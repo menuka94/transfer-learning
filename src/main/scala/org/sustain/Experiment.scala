@@ -17,24 +17,35 @@ import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
+
 import scala.collection.mutable.ListBuffer
 
 import java.util
 import java.util.List
 
 @SerialVersionUID(114L)
-class Experiment(sparkSessionC: SparkSession) extends Serializable {
+class Experiment() extends Serializable {
 
-  /* Class Variables */
-  val K: Int = 56 // sqrt(3192) = 56
-  val CLUSTERING_FEATURES: Array[String] = Array("temp_surface_level_kelvin")
-  val CLUSTERING_YEAR_MONTH_DAY_HOUR: Long = 2010010100
-  val CLUSTERING_TIMESTEP: Long = 0
-  val sparkSession: SparkSession = sparkSessionC
+  def transferLearning(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
+                       database: String, collection: String, clusteringFeatures: Array[String], clusteringYMDH: Long,
+                       clusteringTimestep: Long, clusteringK: Int, regressionFeatures: Array[String],
+                       regressionLabel: String): Unit = {
 
-  def transferLearning(): Unit = {
+    val conf: SparkConf = new SparkConf()
+      .setMaster(sparkMaster)
+      .setAppName(appName)
+      .set("spark.executor.cores", "4")
+      .set("spark.executor.memory", "8G")
+      .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
+      .set("spark.mongodb.input.database", database)
+      .set("spark.mongodb.input.collection", collection)
 
-    import sparkSession.implicits._
+    // Create the SparkSession and ReadConfig
+    val sparkConnector: SparkSession = SparkSession.builder()
+      .config(conf)
+      .getOrCreate() // For the $()-referenced columns
+
+    import sparkConnector.implicits._
 
     /* Read collection into a DataSet[Row], dropping null rows
       +--------+-------------------+--------+-------------------------+
@@ -52,8 +63,8 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       |G4801170|         2010010100|       0|        269.3390808105469|
       +--------+-------------------+--------+-------------------------+
      */
-    var collection: Dataset[Row] = MongoSpark.load(sparkSession)
-    collection = collection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
+    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkConnector)
+    mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
       .na.drop()
 
     /* Take only 1 entry per GISJOIN across all timesteps for clustering
@@ -72,8 +83,8 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       |G4801170|        269.3390808105469|
       +--------+-------------------------+
      */
-    val clusteringCollection: Dataset[Row] = collection.filter(
-      col("year_month_day_hour") === CLUSTERING_YEAR_MONTH_DAY_HOUR && col("timestep") === CLUSTERING_TIMESTEP
+    val clusteringCollection: Dataset[Row] = mongoCollection.filter(
+      col("year_month_day_hour") === clusteringYMDH && col("timestep") === clusteringTimestep
     ).select("gis_join", "temp_surface_level_kelvin")
     clusteringCollection.show(10)
 
@@ -94,7 +105,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       +--------+-------------------------+-------------------+
      */
     val assembler: VectorAssembler = new VectorAssembler()
-      .setInputCols(CLUSTERING_FEATURES)
+      .setInputCols(clusteringFeatures)
       .setOutputCol("features")
     val withFeaturesAssembled: Dataset[Row] = assembler.transform(clusteringCollection)
     withFeaturesAssembled.show(10)
@@ -134,7 +145,7 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       [0.21075872847369662]
       [0.8369497523000703]
      */
-    val kMeans: KMeans = new KMeans().setK(K).setSeed(1L)
+    val kMeans: KMeans = new KMeans().setK(clusteringK).setSeed(1L)
     val kMeansModel: KMeansModel = kMeans.fit(normalizedFeatures)
     val centers: Array[Vector] = kMeansModel.clusterCenters
     println(">>> Cluster centers:\n")
@@ -216,31 +227,30 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       row => (row.getString(0), row.getInt(1))
     )
 
-    // Create LR models for center GISJoins
-    val regressionModels: Array[Regression] = new Array[Regression](gisJoinCenters.length)
-    for (i <- regressionModels.indices) {
+    // Create LR models for cluster centroid GISJoins
+    val centroidModels: Array[CentroidModel] = new Array[CentroidModel](gisJoinCenters.length)
+    for (i <- gisJoinCenters.indices) {
       val gisJoin: String = gisJoinCenters(i)._1
       val clusterId: Int = gisJoinCenters(i)._2
-      val regression: Regression = new Regression(gisJoin, clusterId)
-      regressionModels(i) = regression
+      val mongoHost: String = mongosRouters(clusterId % mongosRouters.length) // choose a mongos router
+      val centroidModel: CentroidModel = new CentroidModel(sparkMaster, mongoHost, mongoPort,
+        database, collection, regressionLabel, regressionFeatures, gisJoin, clusterId)
+      centroidModels(clusterId) = centroidModel
     }
 
     try {
       // Kick off training of LR models for center GISJoins
-      for (i <- regressionModels.indices) {
-        regressionModels(i).start()
-      }
+      centroidModels.foreach(model => model.start())
 
       // Wait until models are done being trained
-      for (i <- regressionModels.indices) {
-        regressionModels(i).join()
-      }
-
+      centroidModels.foreach(model => model.join())
     } catch {
       case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
     }
 
     println("\n\n>>> Initial center models done training\n")
+
+    /*
 
     // Sort trained models by their predicted cluster ID
     scala.util.Sorting.quickSort(regressionModels)
@@ -268,8 +278,10 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
           .foreach( row => { // Iterates over cluster_size gisJoins
             val gisJoin: String = row.getString(0)
             val clusterId: Int  = row.getInt(1)
+            val mongoRouterIndex: Int = (clusterId % 5)
+            val mongoRouterHost: String = MONGO_ROUTER_HOSTS(mongoRouterIndex)
 
-            val regression: Regression = new Regression(gisJoin, clusterId)
+            val regression: Regression = new Regression(gisJoin, clusterId, mongoRouterHost)
             regression.linearRegression = trainedModel.copy(new ParamMap())
             queue += regression
           })
@@ -305,6 +317,8 @@ class Experiment(sparkSessionC: SparkSession) extends Serializable {
       }
     )
 
+
+     */
 
     /*
     // Create new Regression model and initialize it with the already-trained model
