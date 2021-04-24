@@ -17,7 +17,6 @@ import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
-import org.sustain.CentroidModel
 
 import scala.collection.mutable.ListBuffer
 

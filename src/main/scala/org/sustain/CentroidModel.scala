@@ -7,7 +7,6 @@ import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.col
-import org.sustain.CentroidModel
 
 class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String, databaseC: String,
                     collectionC: String, labelC: String, featuresC: Array[String], gisJoinC: String, clusterIdC: Int)
