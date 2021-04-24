@@ -286,26 +286,15 @@ class Experiment() extends Serializable {
     println("\n\n>>> MODEL QUEUES <<<\n")
     clustersQueues.foreach{ println }
 
-    /*
-    modelQueues.foreach(
-      queue => {
-        try {
 
-          queue.foreach(
-            model => model.start()
-          )
+    try {
+      clustersQueues.foreach(queue => queue.start())
+      clustersQueues.foreach(queue => queue.wait())
+    } catch {
+      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
+    }
 
-          queue.foreach(
-            model => model.join()
-          )
 
-        } catch {
-          case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
-        }
-      }
-    )
-
-     */
 
     /*
     // Create new Regression model and initialize it with the already-trained model
