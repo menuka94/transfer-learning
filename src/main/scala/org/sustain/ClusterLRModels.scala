@@ -11,7 +11,8 @@ import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
 class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: String, databaseC: String,
                       collectionC: String, clusterIdC: Int, gisJoinsC: Array[String],
-                      centroidEstimatorC: LinearRegression, featuresC: Array[String], labelC: String)
+                      centroidEstimatorC: LinearRegression, featuresC: Array[String], labelC: String,
+                      originalCollectionC: Dataset[Row])
                       extends Thread with Serializable {
 
   val sparkMaster: String = sparkMasterC
@@ -23,6 +24,7 @@ class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: Stri
   val centroidEstimator: LinearRegression = centroidEstimatorC
   val features: Array[String] = featuresC
   val label: String = labelC
+  val mongoCollection: Dataset[Row] = originalCollectionC
 
   /**
    * Launched by the thread.start()
@@ -30,6 +32,7 @@ class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: Stri
   override def run(): Unit = {
     println("\n\n>>> Fitting models for cluster " + clusterId)
 
+    /*
     val conf: SparkConf = new SparkConf()
       .setMaster(this.sparkMaster)
       .setAppName("Cluster %d models, MongoS [%s]".format(this.clusterId, mongoHostC))
@@ -43,6 +46,8 @@ class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: Stri
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
       .getOrCreate() // For the $()-referenced columns
+
+     */
 
     /* Read collection into a DataSet[Row], dropping null rows
           +--------+-------------------+-------------------------+
@@ -60,9 +65,12 @@ class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: Stri
           |G4801170|         2010010100|        269.3390808105469|
           +--------+-------------------+-------------------------+
          */
+    /*
     var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
     mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "temp_surface_level_kelvin")
       .na.drop()
+
+     */
     mongoCollection.persist() // Persist collection for reuse
 
     // Iterate over all gisJoins in this collection, build models for each from persisted collection

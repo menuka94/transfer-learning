@@ -278,7 +278,7 @@ class Experiment() extends Serializable {
         })
 
       val clusterModels: ClusterLRModels = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database,
-        collection, clusterId, gisJoinList.toArray, trainedModel, regressionFeatures, regressionLabel)
+        collection, clusterId, gisJoinList.toArray, trainedModel, regressionFeatures, regressionLabel, mongoCollection)
       clustersQueues(i) = clusterModels
     }
 
