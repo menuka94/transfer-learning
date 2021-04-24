@@ -6,7 +6,7 @@ import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.{DataFrame, Dataset, Row, RowFactory}
-import org.apache.spark.sql.functions.{col, min, row_number}
+import org.apache.spark.sql.functions.{col, collect_list, min, row_number, struct}
 import org.apache.spark.sql.types.{ArrayType, DataTypes, FloatType}
 import org.apache.spark.ml.regression.LinearRegression
 import org.apache.spark.ml.regression.LinearRegressionModel
@@ -19,7 +19,6 @@ import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 import scala.collection.mutable.ListBuffer
-
 import java.util
 import java.util.List
 
@@ -39,7 +38,7 @@ class Experiment() extends Serializable {
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
       .set("spark.mongodb.input.database", database)
       .set("spark.mongodb.input.collection", collection)
-      .set("mongodb.keep_alive_ms", "100000")
+      .set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
 
     // Create the SparkSession and ReadConfig
     val sparkConnector: SparkSession = SparkSession.builder()
@@ -271,6 +270,7 @@ class Experiment() extends Serializable {
 
       // Get only gisJoins for this clusterId and that are not the center gisJoin, and create regression models from
       // the trained centroid model, adding to the model queue
+      /*
       predictions.select("gis_join", "prediction")
         .filter(col("prediction") === clusterId && col("gis_join") =!= centerGisJoin)
         .collect()
@@ -281,6 +281,13 @@ class Experiment() extends Serializable {
       val clusterModels: ClusterLRModels = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database,
         collection, clusterId, gisJoinList.toArray, trainedModel, regressionFeatures, regressionLabel, mongoCollection)
       clustersQueues(i) = clusterModels
+      */
+
+      val clusters: Dataset[Row] = predictions.select("gis_join")
+        .groupBy(col("prediction"))
+        .agg(collect_list(struct("gis_join", "prediction")))
+      clusters.show(10)
+
     }
 
     // --- DEBUGGING ---

@@ -39,6 +39,13 @@ object Main {
 
   }
 
+  /**
+   * Records the wall-clock time that a block of code takes to run.
+   * Can be wrapped around function calls or multiple statements.
+   * @param block The block of code we are wrapping
+   * @tparam R The return value of the block of code (last line in the block)
+   * @return Returns whatever the last line in the code block returned.
+   */
   def time[R](block: => R): R = {
     val t0 = System.nanoTime()
     val result = block    // call-by-name
