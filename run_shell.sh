@@ -13,5 +13,5 @@ spark-shell \
   --conf spark.mongodb.input.uri=mongodb://lattice-100:27018/ \
   --conf spark.mongodb.input.database=sustaindb \
   --conf spark.mongodb.input.collection=noaa_nam \
-  --packages org.mongodb.spark:mongo-spark-connector_2.11:3.0.1
+  --packages org.mongodb.spark:mongo-spark-connector_2.12:3.0.1
 
