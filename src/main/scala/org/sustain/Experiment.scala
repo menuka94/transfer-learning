@@ -250,55 +250,44 @@ class Experiment() extends Serializable {
 
     println("\n\n>>> Initial center models done training\n")
 
-    /*
-
     // Sort trained models by their predicted cluster ID
-    scala.util.Sorting.quickSort(regressionModels)
+    scala.util.Sorting.quickSort(centroidModels)
 
     // Build k queues of models to be trained, 1 queue per cluster
     // For 3192 GISJoins this is sqrt(3192) = 56 queues, each with ~57 models to be trained (since cluster sizes vary,
     // some queues may be shorter and others larger)
-    val modelQueues: Array[ListBuffer[Regression]] = new Array[ListBuffer[Regression]](K)
+    val clustersQueues: Array[ClusterLRModels] = new Array[ClusterLRModels](gisJoinCenters.length)
     gisJoinCenters.foreach( // Iterates over k centers
       center => {
         val centerGisJoin: String = center._1
         val clusterId: Int = center._2
-        val trainedRegression: Regression = regressionModels(clusterId)
+        val trainedRegression: CentroidModel = centroidModels(clusterId)
         val trainedModel: LinearRegression = trainedRegression.linearRegression
+        val mongoRouterHost: String = mongosRouters(clusterId % mongosRouters.length)
 
         // Create a new Queue
-        val queue: ListBuffer[Regression] = new ListBuffer[Regression]()
-        modelQueues(clusterId) = queue
+        val gisJoinList: ListBuffer[String] = new ListBuffer[String]()
 
         // Get only gisJoins for this clusterId and that are not the center gisJoin, and create regression models from
         // the trained centroid model, adding to the model queue
         predictions.select("gis_join", "prediction")
-          .filter( col("prediction") === clusterId && col("gis_join") =!= centerGisJoin )
+          .filter(col("prediction") === clusterId && col("gis_join") =!= centerGisJoin)
           .collect()
-          .foreach( row => { // Iterates over cluster_size gisJoins
-            val gisJoin: String = row.getString(0)
-            val clusterId: Int  = row.getInt(1)
-            val mongoRouterIndex: Int = (clusterId % 5)
-            val mongoRouterHost: String = MONGO_ROUTER_HOSTS(mongoRouterIndex)
-
-            val regression: Regression = new Regression(gisJoin, clusterId, mongoRouterHost)
-            regression.linearRegression = trainedModel.copy(new ParamMap())
-            queue += regression
+          .foreach(row => { // Iterates over cluster_size gisJoins
+            gisJoinList += row.getString(0)
           })
+
+        val clusterModels: ClusterLRModels = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database,
+          collection, clusterId, gisJoinList.toArray, trainedModel, regressionFeatures, regressionLabel)
       }
     )
 
+
     // --- DEBUGGING ---
     println("\n\n>>> MODEL QUEUES <<<\n")
-    for (i <- modelQueues.indices) {
-      val queue: ListBuffer[Regression] = modelQueues(i)
-      printf("Queue [%d] (Size %d): [ ", i, queue.length)
-      for (j <- queue.indices) {
-        printf("%s ", queue(j))
-      }
-      println("]")
-    }
+    clustersQueues.foreach{ println }
 
+    /*
     modelQueues.foreach(
       queue => {
         try {
@@ -316,7 +305,6 @@ class Experiment() extends Serializable {
         }
       }
     )
-
 
      */
 

@@ -24,10 +24,10 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
 
 
   /**
-   * Launched by the thread.start(), executes train()
+   * Launched by the thread.start()
    */
   override def run(): Unit = {
-    println("\n\n>>> Fitting centroid model for GISJoin " + gisJoin)
+    println("\n\n>>> Fitting centroid model for GISJoin " + gisJoin + ", cluster " + clusterId)
 
     val conf: SparkConf = new SparkConf()
       .setMaster(this.sparkMaster)
@@ -59,12 +59,12 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
       |G4801170|         2010010100|       0|        269.3390808105469|
       +--------+-------------------+--------+-------------------------+
      */
-    var collection: Dataset[Row] = MongoSpark.load(sparkSession)
-    collection = collection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
+    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
+    mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
       .na.drop()
 
     // Filter the data down to just entries for a single GISJoin
-    var gisJoinCollection: Dataset[Row] = collection.filter(col("gis_join") === this.gisJoin)
+    var gisJoinCollection: Dataset[Row] = mongoCollection.filter(col("gis_join") === this.gisJoin)
       .withColumnRenamed(this.label, "label")
 
     val assembler: VectorAssembler = new VectorAssembler()
