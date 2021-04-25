@@ -7,20 +7,13 @@ import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.{DataFrame, Dataset, Row, RowFactory}
 import org.apache.spark.sql.functions.{col, collect_list, min, row_number, struct}
-import org.apache.spark.sql.types.{ArrayType, DataTypes, FloatType}
 import org.apache.spark.ml.regression.LinearRegression
-import org.apache.spark.ml.regression.LinearRegressionModel
-import org.apache.spark.ml.evaluation.RegressionEvaluator
-import com.mongodb.spark._
 import com.mongodb.spark.MongoSpark
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.Vector
-import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 import scala.collection.mutable.ListBuffer
-import java.util
-import java.util.List
 
 @SerialVersionUID(114L)
 class Experiment() extends Serializable {
@@ -253,42 +246,83 @@ class Experiment() extends Serializable {
     // Sort trained models by their predicted cluster ID
     scala.util.Sorting.quickSort(centroidModels)
 
-    // Build k queues of models to be trained, 1 queue per cluster
-    // For 3192 GISJoins this is sqrt(3192) = 56 queues, each with ~57 models to be trained (since cluster sizes vary,
+    /* Group together GISJoins which belong to the same cluster
+      +----------+----------------------+
+      |prediction|collect_list(gis_join)|
+      +----------+----------------------+
+      |        31|  [G3800670, G38009...|
+      |        53|  [G5500510, G35000...|
+      |        34|  [G3100250, G31013...|
+      |        28|  [G1701150, G36000...|
+      |        26|  [G1301790, G13022...|
+      |        27|  [G4100390, G13000...|
+      |        44|  [G5500150, G55008...|
+      |        12|  [G7200540, G72001...|
+      |        22|  [G3101030, G31014...|
+      |        47|  [G4800890, G48046...|
+      |         1|  [G1700990, G55012...|
+      ...
+      +----------+----------------------+
+     */
+    val clusterRows: Dataset[Row] = predictions.select("gis_join", "prediction")
+      .groupBy(col("prediction"))
+      .agg(collect_list("gis_join"))
+    clusterRows.show(10)
+
+    // Collect clustered GISJoins into memory
+    val clusters: Array[(Int, Array[String])] = clusterRows.collect()
+      .map(
+        row => {
+          val gisJoins: Array[String] = row.getAs[Array[String]]("collect_list(gis_join)")
+          (row.getInt(0), gisJoins)
+        }
+      )
+
+    // Build K queues of models to be trained, 1 queue per cluster
+    // For 3192 GISJoins this is sqrt(3192) = ~56 queues, each with ~57 models to be trained (since cluster sizes vary,
     // some queues may be shorter and others larger)
     val clustersQueues: Array[ClusterLRModels] = new Array[ClusterLRModels](gisJoinCenters.length)
-    for (i <- gisJoinCenters.indices) {
-      val center: (String, Int) = gisJoinCenters(i)
-      val centerGisJoin: String = center._1
-      val clusterId: Int = center._2
-      val trainedRegression: CentroidModel = centroidModels(clusterId)
-      val trainedModel: LinearRegression = trainedRegression.linearRegression
-      val mongoRouterHost: String = mongosRouters(clusterId % mongosRouters.length)
+    clusters.foreach(
+      cluster => { // (31, [G3800670, G38009, ...])
+        val clusterId: Int = cluster._1
+        val gisJoins: Array[String] = cluster._2
+        val center: (String, Int) = gisJoinCenters(clusterId)
+        val centerGisJoin: String = center._1
+        val trainedRegression: CentroidModel = centroidModels(clusterId)
+        val trainedModel: LinearRegression = trainedRegression.linearRegression
+        val mongoRouterHost: String = mongosRouters(clusterId % mongosRouters.length)
+        clustersQueues(clusterId) = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database, collection,
+          clusterId, gisJoins, trainedModel, centerGisJoin, regressionFeatures, regressionLabel, mongoCollection)
+      }
+    )
+    /*
+        for (i <- gisJoinCenters.indices) {
+          val center: (String, Int) = gisJoinCenters(i)
+          val centerGisJoin: String = center._1
+          val clusterId: Int = center._2
+          val trainedRegression: CentroidModel = centroidModels(clusterId)
+          val trainedModel: LinearRegression = trainedRegression.linearRegression
+          val mongoRouterHost: String = mongosRouters(clusterId % mongosRouters.length)
 
-      // Create a new Queue
-      val gisJoinList: ListBuffer[String] = new ListBuffer[String]()
+          // Create a new Queue
+          val gisJoinList: ListBuffer[String] = new ListBuffer[String]()
 
-      // Get only gisJoins for this clusterId and that are not the center gisJoin, and create regression models from
-      // the trained centroid model, adding to the model queue
-      /*
-      predictions.select("gis_join", "prediction")
-        .filter(col("prediction") === clusterId && col("gis_join") =!= centerGisJoin)
-        .collect()
-        .foreach(row => { // Iterates over cluster_size gisJoins
-          gisJoinList += row.getString(0)
-        })
+          // Get only gisJoins for this clusterId and that are not the center gisJoin, and create regression models from
+          // the trained centroid model, adding to the model queue
 
-      val clusterModels: ClusterLRModels = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database,
-        collection, clusterId, gisJoinList.toArray, trainedModel, regressionFeatures, regressionLabel, mongoCollection)
-      clustersQueues(i) = clusterModels
-      */
+          predictions.select("gis_join", "prediction")
+            .filter(col("prediction") === clusterId && col("gis_join") =!= centerGisJoin)
+            .collect()
+            .foreach(row => { // Iterates over cluster_size gisJoins
+              gisJoinList += row.getString(0)
+            })
 
-      val clusters: Dataset[Row] = predictions.select("gis_join")
-        .groupBy(col("prediction"))
-        .agg(collect_list(struct("gis_join", "prediction")))
-      clusters.show(10)
-
+          val clusterModels: ClusterLRModels = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database,
+            collection, clusterId, gisJoinList.toArray, trainedModel, regressionFeatures, regressionLabel, mongoCollection)
+          clustersQueues(i) = clusterModels
     }
+    */
+
 
     // --- DEBUGGING ---
     println("\n\n>>> MODEL QUEUES <<<\n")

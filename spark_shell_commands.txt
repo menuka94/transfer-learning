@@ -1,0 +1,124 @@
+import spark.implicits._
+import org.apache.spark.SparkConf
+import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
+import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
+import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.{DataFrame, Dataset, Row, RowFactory}
+import org.apache.spark.sql.functions.{col, collect_list, min, row_number, struct}
+import org.apache.spark.ml.regression.LinearRegression
+import com.mongodb.spark.MongoSpark
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.sql.{Dataset, Row, SparkSession}
+
+
+var mongoCollection: Dataset[Row] = MongoSpark.load(spark)
+
+val clusteringYMDH: Long = 2010010100
+val clusteringTimestep: Long = 0
+val clusteringK: Int = 56
+val clusteringFeatures: Array[String] = Array("temp_surface_level_kelvin")
+
+
++--------+-------------------+--------+-------------------------+
+|gis_join|year_month_day_hour|timestep|temp_surface_level_kelvin|
++--------+-------------------+--------+-------------------------+
+|G4804230|         2010010100|       0|        281.4640808105469|
+|G5600390|         2010010100|       0|        265.2140808105469|
+|G1701150|         2010010100|       0|        265.7140808105469|
+|G0601030|         2010010100|       0|        282.9640808105469|
+|G3701230|         2010010100|       0|        279.2140808105469|
+|G3700690|         2010010100|       0|        280.8390808105469|
+|G3701070|         2010010100|       0|        280.9640808105469|
+|G4803630|         2010010100|       0|        275.7140808105469|
+|G5108200|         2010010100|       0|        273.4640808105469|
+|G4801170|         2010010100|       0|        269.3390808105469|
++--------+-------------------+--------+-------------------------+
+mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin").na.drop()
+
+
++--------+-------------------------+
+|gis_join|temp_surface_level_kelvin|
++--------+-------------------------+
+|G4804230|        281.4640808105469|
+|G5600390|        265.2140808105469|
+|G1701150|        265.7140808105469|
+|G0601030|        282.9640808105469|
+|G3701230|        279.2140808105469|
+|G3700690|        280.8390808105469|
+|G3701070|        280.9640808105469|
+|G4803630|        275.7140808105469|
+|G5108200|        273.4640808105469|
+|G4801170|        269.3390808105469|
++--------+-------------------------+
+val clusteringCollection: Dataset[Row] = mongoCollection.filter(col("year_month_day_hour") === clusteringYMDH && col("timestep") === clusteringTimestep).select("gis_join", "temp_surface_level_kelvin")
+
+
++--------+-------------------------+-------------------+
+|gis_join|temp_surface_level_kelvin|           features|
++--------+-------------------------+-------------------+
+|G4804230|        281.4640808105469|[281.4640808105469]|
+|G5600390|        265.2140808105469|[265.2140808105469]|
+|G1701150|        265.7140808105469|[265.7140808105469]|
+|G0601030|        282.9640808105469|[282.9640808105469]|
+|G3701230|        279.2140808105469|[279.2140808105469]|
+|G3700690|        280.8390808105469|[280.8390808105469]|
+|G3701070|        280.9640808105469|[280.9640808105469]|
+|G4803630|        275.7140808105469|[275.7140808105469]|
+|G5108200|        273.4640808105469|[273.4640808105469]|
+|G4801170|        269.3390808105469|[269.3390808105469]|
++--------+-------------------------+-------------------+
+val assembler: VectorAssembler = new VectorAssembler().setInputCols(clusteringFeatures).setOutputCol("features")
+val withFeaturesAssembled: Dataset[Row] = assembler.transform(clusteringCollection)
+
+
+
++--------+--------------------+
+|gis_join|            features|
++--------+--------------------+
+|G4804230|[0.6709129511677282]|
+|G5600390|[0.3949044585987261]|
+|G1701150|[0.4033970276008492]|
+|G0601030|[0.6963906581740976]|
+|G3701230|[0.6326963906581741]|
+|G3700690|[0.6602972399150743]|
+|G3701070|[0.6624203821656051]|
+|G4803630|[0.5732484076433121]|
+|G5108200| [0.535031847133758]|
+|G4801170|[0.46496815286624...|
++--------+--------------------+
+val minMaxScaler: MinMaxScaler = new MinMaxScaler().setInputCol("features").setOutputCol("normalized_features")
+val minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(withFeaturesAssembled)
+var normalizedFeatures: Dataset[Row] = minMaxScalerModel.transform(withFeaturesAssembled)
+normalizedFeatures = normalizedFeatures.drop("features")
+normalizedFeatures = normalizedFeatures.withColumnRenamed("normalized_features", "features").select("gis_join", "features")
+
+
+[0.5168304366844847]
+[0.3680625754467921]
+[0.6467503082873386]
+[0.21075872847369662]
+[0.8369497523000703]
+val kMeans: KMeans = new KMeans().setK(clusteringK).setSeed(1L)
+val kMeansModel: KMeansModel = kMeans.fit(normalizedFeatures)
+val centers: Array[Vector] = kMeansModel.clusterCenters
+
+
++--------+--------------------+----------+
+|gis_join|            features|prediction|
++--------+--------------------+----------+
+|G4804230|[0.6709129511677282]|         2|
+|G5600390|[0.3949044585987261]|         1|
+|G1701150|[0.4033970276008492]|         1|
+|G0601030|[0.6963906581740976]|         2|
+|G3701230|[0.6326963906581741]|         2|
+|G3700690|[0.6602972399150743]|         2|
+|G3701070|[0.6624203821656051]|         2|
+|G4803630|[0.5732484076433121]|         0|
+|G5108200| [0.535031847133758]|         0|
+|G4801170|[0.46496815286624...|         0|
++--------+--------------------+----------+
+val predictions: Dataset[Row] = kMeansModel.transform(normalizedFeatures)
+
+val clusters: Dataset[Row] = predictions.select("gis_join", "prediction").groupBy(col("prediction")).agg(collect_list("gis_join"))

@@ -11,7 +11,7 @@ import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
 class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: String, databaseC: String,
                       collectionC: String, clusterIdC: Int, gisJoinsC: Array[String],
-                      centroidEstimatorC: LinearRegression, featuresC: Array[String], labelC: String,
+                      centroidEstimatorC: LinearRegression, centroidGisJoinC: String, featuresC: Array[String], labelC: String,
                       originalCollectionC: Dataset[Row])
                       extends Thread with Serializable {
 
@@ -20,6 +20,7 @@ class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: Stri
   val database: String = databaseC
   val collection: String = collectionC
   val clusterId: Int = clusterIdC
+  val centroidGisJoin: String = centroidGisJoinC
   val gisJoins: Array[String] = gisJoinsC
   val centroidEstimator: LinearRegression = centroidEstimatorC
   val features: Array[String] = featuresC
