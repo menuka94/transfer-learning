@@ -14,6 +14,7 @@ import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
 
 @SerialVersionUID(114L)
 class Experiment() extends Serializable {
@@ -273,7 +274,7 @@ class Experiment() extends Serializable {
     val clusters: Array[(Int, Array[String])] = clusterRows.collect()
       .map(
         row => {
-          val gisJoins: Array[String] = row.getAs[Array[String]]("collect_list(gis_join)")
+          val gisJoins: Array[String] = row.getList[String](1).asScala.toArray
           (row.getInt(0), gisJoins)
         }
       )
