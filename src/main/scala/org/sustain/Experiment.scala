@@ -80,7 +80,6 @@ class Experiment() extends Serializable {
     val clusteringCollection: Dataset[Row] = mongoCollection.filter(
       col("year_month_day_hour") === clusteringYMDH && col("timestep") === clusteringTimestep
     ).select("gis_join", "temp_surface_level_kelvin")
-    clusteringCollection.show(10)
 
     /* Assemble features into single column
       +--------+-------------------------+-------------------+
@@ -102,7 +101,6 @@ class Experiment() extends Serializable {
       .setInputCols(clusteringFeatures)
       .setOutputCol("features")
     val withFeaturesAssembled: Dataset[Row] = assembler.transform(clusteringCollection)
-    withFeaturesAssembled.show(10)
 
     /* Normalize features
       +--------+--------------------+
@@ -129,7 +127,6 @@ class Experiment() extends Serializable {
     normalizedFeatures = normalizedFeatures.withColumnRenamed("normalized_features", "features")
       .select("gis_join", "features")
     println(">>> With normalized features:\n")
-    normalizedFeatures.show(10)
 
 
     /* KMeans clustering centers
@@ -164,7 +161,6 @@ class Experiment() extends Serializable {
      */
     val predictions: Dataset[Row] = kMeansModel.transform(normalizedFeatures)
     println(">>> Predictions centers:\n")
-    predictions.show(10)
 
     /* Calculate distances to cluster center
       +--------+----------+--------------------+
@@ -190,7 +186,6 @@ class Experiment() extends Serializable {
 
       (row.getString(0), row.getInt(2), distance) // (String, Int, Double)
     }).toDF("gis_join", "prediction", "distance").as("distances")
-    distances.show(100)
 
     /* Partition by prediction, find the minimum distance value, and pair back with original dataframe.
       +--------+----------+--------------------+
@@ -268,7 +263,6 @@ class Experiment() extends Serializable {
     val clusterRows: Dataset[Row] = predictions.select("gis_join", "prediction")
       .groupBy(col("prediction"))
       .agg(collect_list("gis_join"))
-    clusterRows.show(10)
 
     // Collect clustered GISJoins into memory
     val clusters: Array[(Int, Array[String])] = clusterRows.collect()
