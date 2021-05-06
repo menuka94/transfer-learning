@@ -31,6 +31,25 @@ object Main {
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
 
+    val pcaFeatures: Array[String] = Array("mean_sea_level_pressure_pascal",
+      "surface_pressure_surface_level_pascal",
+      "orography_surface_level_meters",
+      "temp_surface_level_kelvin",
+      "2_metre_temp_kelvin",
+      "2_metre_dewpoint_temp_kelvin",
+      "relative_humidity_percent",
+      "10_metre_u_wind_component_meters_per_second",
+      "10_metre_v_wind_component_meters_per_second",
+      "total_precipitation_kg_per_squared_meter",
+      "water_convection_precipitation_kg_per_squared_meter",
+      "soil_temperature_kelvin",
+      "pressure_pascal",
+      "visibility_meters",
+      "precipitable_water_kg_per_squared_meter",
+      "total_cloud_cover_percent",
+      "snow_depth_meters",
+      "ice_cover_binary")
+
     val experiment: Experiment = new Experiment()
     println("\n\n>>> Starting nanosecond timer\n")
     time { experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
