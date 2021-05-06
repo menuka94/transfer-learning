@@ -14,8 +14,8 @@ class PrincipleComponentAnalysis {
     val conf: SparkConf = new SparkConf()
       .setMaster(sparkMaster)
       .setAppName(appName)
-      .set("spark.executor.cores", "4")
-      .set("spark.executor.memory", "8G")
+      .set("spark.executor.cores", "20")
+      .set("spark.executor.memory", "16G")
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
       .set("spark.mongodb.input.database", database)
       .set("spark.mongodb.input.collection", collection)
@@ -42,18 +42,17 @@ class PrincipleComponentAnalysis {
     var normalizedFeatures: Dataset[Row] = minMaxScalerModel.transform(withFeaturesAssembled)
     normalizedFeatures = normalizedFeatures.drop("features")
     normalizedFeatures = normalizedFeatures.withColumnRenamed("normalized_features", "features")
-      .select("gis_join", "features")
 
     val pca: PCAModel = new PCA()
       .setInputCol("features")
       .setOutputCol("pcaFeatures")
-      .setK(pcaFeatures.length)
+      .setK(6)
       .fit(normalizedFeatures)
 
     val pc: DenseMatrix = pca.pc
-    val pcaDF: Dataset[Row] = pca.transform(normalizedFeatures).select("features", "pcaFeatures");
-    val requiredNoOfPCs: Int = getNoPrincipalComponentsByVariance(pca, 0.95);
-    pcaDF.show(10)
+    val pcaDF: Dataset[Row] = pca.transform(normalizedFeatures).select("gis_join", "features", "pcaFeatures");
+    // val requiredNoOfPCs: Int = getNoPrincipalComponentsByVariance(pca, 0.95); // 6
+    pcaDF.show(100)
   }
 
   def getNoPrincipalComponentsByVariance(pca: PCAModel, targetVariance: Double): Int = {

@@ -1,7 +1,7 @@
 import spark.implicits._
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
-import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
+import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel, PCA, PCAModel, VectorAssembler}
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.{DataFrame, Dataset, Row, RowFactory}
@@ -10,9 +10,10 @@ import org.apache.spark.ml.regression.LinearRegression
 import com.mongodb.spark.MongoSpark
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.ml.linalg.{DenseMatrix, DenseVector}
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
-sc.set("mongodb.keep_alive_ms", "100000")
+spark.conf.set("mongodb.keep_alive_ms", "100000")
 
 var mongoCollection: Dataset[Row] = MongoSpark.load(spark)
 
@@ -41,107 +42,35 @@ val minMaxScaler: MinMaxScaler = new MinMaxScaler().setInputCol("features").setO
 val minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(withFeaturesAssembled)
 var normalizedFeatures: Dataset[Row] = minMaxScalerModel.transform(withFeaturesAssembled)
 normalizedFeatures = normalizedFeatures.drop("features").withColumnRenamed("normalized_features", "features").select("gis_join", "features")
-val pca: PCAModel = new PCA().setInputCol("features").setOutputCol("pcaFeatures").setK(pcaFeatures.length).fit(normalizedFeatures)
+val pca: PCAModel = new PCA().setInputCol("features").setOutputCol("pcaFeatures").setK(6).fit(normalizedFeatures)
+val pc: DenseMatrix = pca.pc
+val pcaDF: Dataset[Row] = pca.transform(normalizedFeatures).select("features", "pcaFeatures");
 
+scala> pcaDF.show()
++--------------------+--------------------+
+|            features|         pcaFeatures|
++--------------------+--------------------+
+|[0.54405509418675...|[0.80492832393268...|
+|[0.55296738910269...|[0.80857487657638...|
+|[0.55276483694551...|[0.76926659597087...|
+|[0.55377759773141...|[0.79674422064381...|
+|[0.54628316791573...|[0.71710709966826...|
+|[0.55448653028154...|[0.77397137809210...|
+|[0.55600567146040...|[0.68385808112507...|
+|[0.55772736479643...|[0.66660908921372...|
+|[0.55499291067449...|[0.75565165269005...|
+|[0.55468908243872...|[0.72406202099240...|
+|[0.55701843224630...|[0.70259295830020...|
+|[0.55894267773951...|[0.65973792208689...|
+|[0.55752481263925...|[0.70411932843546...|
+|[0.55600567146040...|[0.72890749027291...|
+|[0.55549929106744...|[0.73739245072801...|
+|[0.55134697184525...|[0.84536048028294...|
+|[0.55033421105934...|[0.84497922527196...|
+|[0.55235973263115...|[0.83180258697776...|
+|[0.55073931537370...|[0.84546368981010...|
+|[0.54911889811626...|[0.84514470930467...|
++--------------------+--------------------+
 
-+--------+-------------------+--------+-------------------------+
-|gis_join|year_month_day_hour|timestep|temp_surface_level_kelvin|
-+--------+-------------------+--------+-------------------------+
-|G1200870|         2010011000|       0|       297.02488708496094|
-|G1200870|         2010011000|       0|       280.64988708496094|
-|G1200870|         2010011000|       0|       287.02488708496094|
-|G1200870|         2010011000|       0|       279.02488708496094|
-|G1200870|         2010011000|       0|       296.14988708496094|
-|G1200870|         2010011000|       0|       279.02488708496094|
-|G1200870|         2010011000|       0|       291.77488708496094|
-|G1200870|         2010011000|       0|       283.64988708496094|
-|G1200870|         2010011000|       0|       279.02488708496094|
-|G1200870|         2010011000|       0|       286.77488708496094|
-+--------+-------------------+--------+-------------------------+
-mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin").na.drop()
-
-
-+--------+-------------------------+
-|gis_join|temp_surface_level_kelvin|
-+--------+-------------------------+
-|G4804230|        281.4640808105469|
-|G5600390|        265.2140808105469|
-|G1701150|        265.7140808105469|
-|G0601030|        282.9640808105469|
-|G3701230|        279.2140808105469|
-|G3700690|        280.8390808105469|
-|G3701070|        280.9640808105469|
-|G4803630|        275.7140808105469|
-|G5108200|        273.4640808105469|
-|G4801170|        269.3390808105469|
-+--------+-------------------------+
-val clusteringCollection: Dataset[Row] = mongoCollection.filter(col("year_month_day_hour") === clusteringYMDH && col("timestep") === clusteringTimestep).select("gis_join", "temp_surface_level_kelvin")
-
-
-+--------+-------------------------+-------------------+
-|gis_join|temp_surface_level_kelvin|           features|
-+--------+-------------------------+-------------------+
-|G4804230|        281.4640808105469|[281.4640808105469]|
-|G5600390|        265.2140808105469|[265.2140808105469]|
-|G1701150|        265.7140808105469|[265.7140808105469]|
-|G0601030|        282.9640808105469|[282.9640808105469]|
-|G3701230|        279.2140808105469|[279.2140808105469]|
-|G3700690|        280.8390808105469|[280.8390808105469]|
-|G3701070|        280.9640808105469|[280.9640808105469]|
-|G4803630|        275.7140808105469|[275.7140808105469]|
-|G5108200|        273.4640808105469|[273.4640808105469]|
-|G4801170|        269.3390808105469|[269.3390808105469]|
-+--------+-------------------------+-------------------+
-val assembler: VectorAssembler = new VectorAssembler().setInputCols(clusteringFeatures).setOutputCol("features")
-val withFeaturesAssembled: Dataset[Row] = assembler.transform(clusteringCollection)
-
-
-
-+--------+--------------------+
-|gis_join|            features|
-+--------+--------------------+
-|G4804230|[0.6709129511677282]|
-|G5600390|[0.3949044585987261]|
-|G1701150|[0.4033970276008492]|
-|G0601030|[0.6963906581740976]|
-|G3701230|[0.6326963906581741]|
-|G3700690|[0.6602972399150743]|
-|G3701070|[0.6624203821656051]|
-|G4803630|[0.5732484076433121]|
-|G5108200| [0.535031847133758]|
-|G4801170|[0.46496815286624...|
-+--------+--------------------+
-val minMaxScaler: MinMaxScaler = new MinMaxScaler().setInputCol("features").setOutputCol("normalized_features")
-val minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(withFeaturesAssembled)
-var normalizedFeatures: Dataset[Row] = minMaxScalerModel.transform(withFeaturesAssembled)
-normalizedFeatures = normalizedFeatures.drop("features")
-normalizedFeatures = normalizedFeatures.withColumnRenamed("normalized_features", "features").select("gis_join", "features")
-
-
-[0.5168304366844847]
-[0.3680625754467921]
-[0.6467503082873386]
-[0.21075872847369662]
-[0.8369497523000703]
-val kMeans: KMeans = new KMeans().setK(clusteringK).setSeed(1L)
-val kMeansModel: KMeansModel = kMeans.fit(normalizedFeatures)
-val centers: Array[Vector] = kMeansModel.clusterCenters
-
-
-+--------+--------------------+----------+
-|gis_join|            features|prediction|
-+--------+--------------------+----------+
-|G4804230|[0.6709129511677282]|         2|
-|G5600390|[0.3949044585987261]|         1|
-|G1701150|[0.4033970276008492]|         1|
-|G0601030|[0.6963906581740976]|         2|
-|G3701230|[0.6326963906581741]|         2|
-|G3700690|[0.6602972399150743]|         2|
-|G3701070|[0.6624203821656051]|         2|
-|G4803630|[0.5732484076433121]|         0|
-|G5108200| [0.535031847133758]|         0|
-|G4801170|[0.46496815286624...|         0|
-+--------+--------------------+----------+
-val predictions: Dataset[Row] = kMeansModel.transform(normalizedFeatures)
-
-val clusters: Dataset[Row] = predictions.select("gis_join", "prediction").groupBy(col("prediction")).agg(collect_list("gis_join"))
+scala> pcaDF.count()
+res6: Long = 61029720
