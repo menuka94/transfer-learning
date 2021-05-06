@@ -50,12 +50,21 @@ object Main {
       "snow_depth_meters",
       "ice_cover_binary")
 
+    val pca: PrincipleComponentAnalysis = new PrincipleComponentAnalysis()
+    time {
+      pca.runPCA("spark://lattice-100:8079", "PCA on NOAA", Array("lattice-100"),
+        "27018", "sustaindb", "noaa_nam", pcaFeatures)
+    }
+
+    /*
     val experiment: Experiment = new Experiment()
     println("\n\n>>> Starting nanosecond timer\n")
     time { experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
       MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_YEAR_MONTH_DAY_HOUR, CLUSTERING_TIMESTEP, CLUSTERING_K,
       REGRESSION_FEATURES, REGRESSION_LABEL) }
 
+
+     */
   }
 
   /**
