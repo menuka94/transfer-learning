@@ -12,6 +12,8 @@ import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
+sc.set("mongodb.keep_alive_ms", "100000")
+
 var mongoCollection: Dataset[Row] = MongoSpark.load(spark)
 
 val pcaFeatures: Array[String] = Array("mean_sea_level_pressure_pascal",
