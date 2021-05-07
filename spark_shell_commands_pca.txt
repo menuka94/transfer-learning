@@ -44,7 +44,15 @@ var normalizedFeatures: Dataset[Row] = minMaxScalerModel.transform(withFeaturesA
 normalizedFeatures = normalizedFeatures.drop("features").withColumnRenamed("normalized_features", "features").select("gis_join", "features")
 val pca: PCAModel = new PCA().setInputCol("features").setOutputCol("pcaFeatures").setK(6).fit(normalizedFeatures)
 val pc: DenseMatrix = pca.pc
-val pcaDF: Dataset[Row] = pca.transform(normalizedFeatures).select("features", "pcaFeatures");
+val pcaDF: Dataset[Row] = pca.transform(normalizedFeatures).select("gis_join", "features", "pcaFeatures");
+
+val nElements = 6
+
+val testDF1: Dataset[Row] = pcaDF.select(($"gis_join" +: Range(0, nElements).map(idx => $"pcaFeatures"(idx) as "PC" + (idx + 2)):_*))
+
+val testDF2: Dataset[Row] = pcaDF.select($"gis_join", $"pcaFeatures"(0) as "PCA0", $"pcaFeatures"(1) as "PCA1", $"pcaFeatures"(2) as "PCA2")
+
+val testDF: Dataset[Row] = pcaDF.groupBy("gis_join").avg("pcaFeatures")
 
 scala> pcaDF.show()
 +--------------------+--------------------+
