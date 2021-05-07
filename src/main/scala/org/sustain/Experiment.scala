@@ -22,13 +22,13 @@ class Experiment() extends Serializable {
   def transferLearning(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
                        database: String, collection: String, clusteringFeatures: Array[String], clusteringYMDH: Long,
                        clusteringTimestep: Long, clusteringK: Int, regressionFeatures: Array[String],
-                       regressionLabel: String): Unit = {
+                       regressionLabel: String, pcaFeatures: Array[String]): Unit = {
 
     val conf: SparkConf = new SparkConf()
       .setMaster(sparkMaster)
       .setAppName(appName)
-      .set("spark.executor.cores", "4")
-      .set("spark.executor.memory", "8G")
+      .set("spark.executor.cores", "8")
+      .set("spark.executor.memory", "20G")
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
       .set("spark.mongodb.input.database", database)
       .set("spark.mongodb.input.collection", collection)
@@ -40,6 +40,29 @@ class Experiment() extends Serializable {
       .getOrCreate() // For the $()-referenced columns
 
     import sparkConnector.implicits._
+
+    val pca: PrincipleComponentAnalysis = new PrincipleComponentAnalysis()
+
+    /* Run PCA on the collection and get the DF containing the principle components
+      +--------+--------------------+--------------------+
+      |gis_join|            features|         pcaFeatures|
+      +--------+--------------------+--------------------+
+      |G1200870|[0.54405509418675...|[0.80492832393268...|
+      |G1200870|[0.55296738910269...|[0.80857487657638...|
+      |G1200870|[0.55276483694551...|[0.76926659597088...|
+      |G1200870|[0.55377759773141...|[0.79674422064382...|
+      |G1200870|[0.54628316791573...|[0.71710709966826...|
+      |G1200870|[0.55448653028154...|[0.77397137809210...|
+      |G1200870|[0.55600567146040...|[0.68385808112508...|
+      |G1200870|[0.55772736479643...|[0.66660908921373...|
+      |G1200870|[0.55499291067449...|[0.75565165269005...|
+      |G1200870|[0.55468908243872...|[0.72406202099241...|
+      |G1200870|[0.55701843224630...|[0.70259295830020...|
+      |G1200870|[0.55894267773951...|[0.65973792208690...|
+      ...
+      +--------+--------------------+--------------------+
+     */
+    val pcaDF: Dataset[Row] = pca.runPCA(sparkConnector, pcaFeatures)
 
     /* Read collection into a DataSet[Row], dropping null rows
       +--------+-------------------+--------+-------------------------+

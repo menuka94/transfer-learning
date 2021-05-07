@@ -8,23 +8,7 @@ import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 class PrincipleComponentAnalysis {
 
-  def runPCA(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
-             database: String, collection: String, pcaFeatures: Array[String]): Unit = {
-
-    val conf: SparkConf = new SparkConf()
-      .setMaster(sparkMaster)
-      .setAppName(appName)
-      .set("spark.executor.cores", "8")
-      .set("spark.executor.memory", "20G")
-      .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
-      .set("spark.mongodb.input.database", database)
-      .set("spark.mongodb.input.collection", collection)
-      .set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
-
-    // Create the SparkSession and ReadConfig
-    val sparkConnector: SparkSession = SparkSession.builder()
-      .config(conf)
-      .getOrCreate() // For the $()-referenced columns
+  def runPCA(sparkConnector: SparkSession, pcaFeatures: Array[String]): Dataset[Row] = {
 
     import sparkConnector.implicits._
 
@@ -53,6 +37,7 @@ class PrincipleComponentAnalysis {
     val pcaDF: Dataset[Row] = pca.transform(normalizedFeatures).select("gis_join", "features", "pcaFeatures");
     // val requiredNoOfPCs: Int = getNoPrincipalComponentsByVariance(pca, 0.95); // 6
     pcaDF.show(100)
+    pcaDF
   }
 
   def getNoPrincipalComponentsByVariance(pca: PCAModel, targetVariance: Double): Int = {

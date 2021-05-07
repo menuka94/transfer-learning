@@ -21,6 +21,24 @@ object Main {
   val MONGO_PORT: String = "27018"
   val MONGO_DB: String = "sustaindb"
   val MONGO_COLLECTION: String = "noaa_nam"
+  val PCA_FEATURES: Array[String] = Array("mean_sea_level_pressure_pascal",
+    "surface_pressure_surface_level_pascal",
+    "orography_surface_level_meters",
+    "temp_surface_level_kelvin",
+    "2_metre_temp_kelvin",
+    "2_metre_dewpoint_temp_kelvin",
+    "relative_humidity_percent",
+    "10_metre_u_wind_component_meters_per_second",
+    "10_metre_v_wind_component_meters_per_second",
+    "total_precipitation_kg_per_squared_meter",
+    "water_convection_precipitation_kg_per_squared_meter",
+    "soil_temperature_kelvin",
+    "pressure_pascal",
+    "visibility_meters",
+    "precipitable_water_kg_per_squared_meter",
+    "total_cloud_cover_percent",
+    "snow_depth_meters",
+    "ice_cover_binary")
   val CLUSTERING_FEATURES: Array[String] = Array("temp_surface_level_kelvin")
   val CLUSTERING_TIMESTEP: Long = 0
   val CLUSTERING_K: Int = 56 // sqrt(3192) = 56
@@ -31,40 +49,13 @@ object Main {
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
 
-    val pcaFeatures: Array[String] = Array("mean_sea_level_pressure_pascal",
-      "surface_pressure_surface_level_pascal",
-      "orography_surface_level_meters",
-      "temp_surface_level_kelvin",
-      "2_metre_temp_kelvin",
-      "2_metre_dewpoint_temp_kelvin",
-      "relative_humidity_percent",
-      "10_metre_u_wind_component_meters_per_second",
-      "10_metre_v_wind_component_meters_per_second",
-      "total_precipitation_kg_per_squared_meter",
-      "water_convection_precipitation_kg_per_squared_meter",
-      "soil_temperature_kelvin",
-      "pressure_pascal",
-      "visibility_meters",
-      "precipitable_water_kg_per_squared_meter",
-      "total_cloud_cover_percent",
-      "snow_depth_meters",
-      "ice_cover_binary")
 
-    val pca: PrincipleComponentAnalysis = new PrincipleComponentAnalysis()
-    time {
-      pca.runPCA("spark://lattice-100:8079", "PCA on NOAA", Array("lattice-100"),
-        "27018", "sustaindb", "noaa_nam", pcaFeatures)
-    }
-
-    /*
     val experiment: Experiment = new Experiment()
     println("\n\n>>> Starting nanosecond timer\n")
     time { experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
       MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_YEAR_MONTH_DAY_HOUR, CLUSTERING_TIMESTEP, CLUSTERING_K,
-      REGRESSION_FEATURES, REGRESSION_LABEL) }
+      REGRESSION_FEATURES, REGRESSION_LABEL, PCA_FEATURES) }
 
-
-     */
   }
 
   /**
