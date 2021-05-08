@@ -1,8 +1,7 @@
 package org.sustain
 
-import com.mongodb.spark.MongoSpark
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
-import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel, VectorAssembler}
+import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, collect_list, row_number}
@@ -10,15 +9,14 @@ import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 import java.io.{File, PrintWriter}
 import java.util
-import java.util.List
 
 class KMeansClustering {
 
-  def runClustering(sparkConnector: SparkSession, inputCollection: Dataset[Row], clusteringFeatures: Array[String], clusteringK: Int): Unit = {
+  def runClustering(spark: SparkSession, inputCollection: Dataset[Row], clusteringFeatures: Array[String], clusteringK: Int): Unit = {
 
-    import sparkConnector.implicits._
+    import spark.implicits._
 
-    /* We start off with this:
+    /* We start off with this Dataframe from the PCA output:
       +--------+-------------------+------------------+-------------------+--------------------+------------------+-------------------+
       |gis_join|           avg_pc_0|          avg_pc_1|           avg_pc_2|            avg_pc_3|          avg_pc_4|           avg_pc_5|
       +--------+-------------------+------------------+-------------------+--------------------+------------------+-------------------+
@@ -50,7 +48,7 @@ class KMeansClustering {
       |G1701390|[0.41580209369747...|
       |G4200570|[0.31044235601868...|
       |G1801810|[0.42815837096515...|
-      |G1701230|[0.39402854964721...|
+      ...
       +--------+--------------------+
      */
     val assembler: VectorAssembler = new VectorAssembler()
@@ -58,7 +56,7 @@ class KMeansClustering {
       .setOutputCol("features")
     val withFeaturesAssembled: Dataset[Row] = assembler.transform(clusteringCollection).select("gis_join", "features")
 
-    /* KMeans clustering centers: K = 56 centers
+    /* KMeans clustering centers: K = sqrt(N = 3192) = 56 centers
       [0.2516285197122672,1.2077966459300173,0.10184393694730279,-0.2832774504883632,0.9575598806493245,0.3474121497943072]
       [0.3846041603005205,0.5111460686812306,0.6562840345366265,-0.12649469690747978,0.9999756803184017,0.29672545856505655]
       [0.3473555262419151,0.9228535371047386,0.32849860847099754,-0.24316970595244403,0.9815467689749992,0.3149804772098435]
@@ -87,6 +85,7 @@ class KMeansClustering {
       |G1701230|[0.39402854964721...|        18|
       |G3100050|[0.29467451687903...|        47|
       |G1901890|[0.44782911725726...|        20|
+      ...
       +--------+--------------------+----------+
      */
     val predictions: Dataset[Row] = kMeansModel.transform(withFeaturesAssembled)
@@ -143,16 +142,11 @@ class KMeansClustering {
       .groupBy(col("prediction"))
       .agg(collect_list("gis_join"))
 
-    /* Collect into Array[(<gis_join>, <prediction>)]
+    /* Collect into Array[(<gis_join>, <cluster_id>)]
       [
         (G0800790,31)
         (G1900610,53)
-        (G1300830,12)
-        (G4804490,22)
         ...
-        (G3000030,47)
-        (G0800070,1)
-        (G1702030,18)
         (G4900230,36)
       ]
      */
