@@ -4,7 +4,7 @@ This project is written in Scala, and is Scala Build Tool (SBT) compliant. Docum
 
 ## Description
 
-Runs Spark PCA modeling on [NOAA's NAM dataset](https://www.ncdc.noaa.gov/data-access/model-data/model-datasets/north-american-mesoscale-forecast-system-nam), followed by K-Means Clustering to get $K$ clusters. The cluster centroids are computed by finding the GISJoins which have the smallest squared distance based on principle components. Finally, the application outputs a list of <cluster_id>,<gis_join>,<is_center> in CSV format.
+Runs Spark PCA modeling on [NOAA's NAM dataset](https://www.ncdc.noaa.gov/data-access/model-data/model-datasets/north-american-mesoscale-forecast-system-nam), followed by K-Means Clustering to get **K** clusters. The cluster centroids are computed by finding the GISJoins which have the smallest squared distance based on principle components. Finally, the application outputs a list of <cluster_id>,<gis_join>,<is_center> in CSV format.
 
 ## Usage
 
