@@ -39,10 +39,8 @@ object Main {
     "total_cloud_cover_percent",
     "snow_depth_meters",
     "ice_cover_binary")
-  val CLUSTERING_FEATURES: Array[String] = Array("temp_surface_level_kelvin")
-  val CLUSTERING_TIMESTEP: Long = 0
+  val CLUSTERING_FEATURES: Array[String] = Array("avg_pc_0", "avg_pc_1", "avg_pc_2", "avg_pc_3", "avg_pc_4", "avg_pc_5")
   val CLUSTERING_K: Int = 56 // sqrt(3192) = 56
-  val CLUSTERING_YEAR_MONTH_DAY_HOUR: Long = 2010010100
   val REGRESSION_FEATURES: Array[String] = Array("year_month_day_hour")
   val REGRESSION_LABEL: String = "temp_surface_level_kelvin"
 
@@ -53,7 +51,7 @@ object Main {
     val experiment: Experiment = new Experiment()
     println("\n\n>>> Starting nanosecond timer\n")
     time { experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-      MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_YEAR_MONTH_DAY_HOUR, CLUSTERING_TIMESTEP, CLUSTERING_K,
+      MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K,
       REGRESSION_FEATURES, REGRESSION_LABEL, PCA_FEATURES) }
 
   }

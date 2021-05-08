@@ -1,7 +1,7 @@
 import spark.implicits._
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
-import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel, PCA, PCAModel, VectorAssembler}
+import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel, PCA, PCAModel, VectorAssembler, VectorDisassembler}
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.{DataFrame, Dataset, Row, RowFactory}
@@ -46,39 +46,83 @@ val pca: PCAModel = new PCA().setInputCol("features").setOutputCol("pcaFeatures"
 val pc: DenseMatrix = pca.pc
 val pcaDF: Dataset[Row] = pca.transform(normalizedFeatures).select("gis_join", "features", "pcaFeatures");
 
-val nElements = 6
+val disassembler = new VectorDisassembler().setInputCol("pcaFeatures")
+val pcaDF2 = disassembler.transform(pcaDF)
 
-val testDF1: Dataset[Row] = pcaDF.select(($"gis_join" +: Range(0, nElements).map(idx => $"pcaFeatures"(idx) as "PC" + (idx + 2)):_*))
+val pcaDF3: Dataset[Row] = pcaDF2.groupBy(col("gis_join")).agg(
+      avg("pcaFeatures_0").as("avg_pc_0"),
+      avg("pcaFeatures_1").as("avg_pc_1"),
+      avg("pcaFeatures_2").as("avg_pc_2"),
+      avg("pcaFeatures_3").as("avg_pc_3"),
+      avg("pcaFeatures_4").as("avg_pc_4"),
+      avg("pcaFeatures_5").as("avg_pc_5")
+    ).select("gis_join", "avg_pc_0", "avg_pc_1", "avg_pc_2", "avg_pc_3", "avg_pc_4", "avg_pc_5")
 
-val testDF2: Dataset[Row] = pcaDF.select($"gis_join", $"pcaFeatures"(0) as "PCA0", $"pcaFeatures"(1) as "PCA1", $"pcaFeatures"(2) as "PCA2")
+var clusteringCollection: Dataset[Row] = pcaDF3
+val assembler: VectorAssembler = new VectorAssembler().setInputCols(CLUSTERING_FEATURES).setOutputCol("features")
+val withFeaturesAssembled: Dataset[Row] = assembler.transform(clusteringCollection).select("gis_join", "features")
+val kMeans: KMeans = new KMeans().setK(56).setSeed(1L)
+val kMeansModel: KMeansModel = kMeans.fit(withFeaturesAssembled)
+val centers: Array[Vector] = kMeansModel.clusterCenters
 
-val testDF: Dataset[Row] = pcaDF.groupBy("gis_join").avg("pcaFeatures")
 
-scala> pcaDF.show()
-+--------------------+--------------------+
-|            features|         pcaFeatures|
-+--------------------+--------------------+
-|[0.54405509418675...|[0.80492832393268...|
-|[0.55296738910269...|[0.80857487657638...|
-|[0.55276483694551...|[0.76926659597087...|
-|[0.55377759773141...|[0.79674422064381...|
-|[0.54628316791573...|[0.71710709966826...|
-|[0.55448653028154...|[0.77397137809210...|
-|[0.55600567146040...|[0.68385808112507...|
-|[0.55772736479643...|[0.66660908921372...|
-|[0.55499291067449...|[0.75565165269005...|
-|[0.55468908243872...|[0.72406202099240...|
-|[0.55701843224630...|[0.70259295830020...|
-|[0.55894267773951...|[0.65973792208689...|
-|[0.55752481263925...|[0.70411932843546...|
-|[0.55600567146040...|[0.72890749027291...|
-|[0.55549929106744...|[0.73739245072801...|
-|[0.55134697184525...|[0.84536048028294...|
-|[0.55033421105934...|[0.84497922527196...|
-|[0.55235973263115...|[0.83180258697776...|
-|[0.55073931537370...|[0.84546368981010...|
-|[0.54911889811626...|[0.84514470930467...|
-+--------------------+--------------------+
+    [0.2516285197122672,1.2077966459300173,0.10184393694730279,-0.2832774504883632,0.9575598806493245,0.3474121497943072]
+    [0.3846041603005205,0.5111460686812306,0.6562840345366265,-0.12649469690747978,0.9999756803184017,0.29672545856505655]
+    [0.3473555262419151,0.9228535371047386,0.32849860847099754,-0.24316970595244403,0.9815467689749992,0.3149804772098435]
+    [0.08073848277123541,1.3228816046847527,0.04054138630382662,-0.08089940823098363,1.0850326683632194,0.1931426866644562]
+    [0.5292323019888051,0.955174793334104,0.12370416020077485,-0.39634298547682106,0.914124072758712,0.2868526450082559]
+    [0.02514500239201011,0.9809745259146007,0.411014453894612,0.009504899351576961,0.9185787192018573,0.31316348779096365]
+    [0.46707174362327314,1.098711014250191,0.10292447377420962,-0.3465777968765852,0.9450957609069323,0.33724779314204295]
+    [0.08168322028052964,1.258784046160886,0.08387544622117592,-0.1657408185238105,0.9734788277979807,0.3023305591950235]
+    ... // K = 56 centers
+    [0.3983278116018065,1.0630936147605825,0.25317821410023883,-0.18147137517908773,0.9915912535957239,0.32940459321920107]
+    [0.478870452278068,1.113299454713786,0.10844068712860798,-0.27070002261203685,0.9482140275439891,0.34984351317011686]
+centers.foreach { println }
 
-scala> pcaDF.count()
-res6: Long = 61029720
+
++--------+----------+--------------------+
+|gis_join|prediction|            distance|
++--------+----------+--------------------+
+|G1901890|        20|0.001360450766169...|
+|G3600770|        28| 0.00166924305036728|
+|G4600710|        16|0.006433555715560622|
+|G2700790|        20|0.001372933190314...|
+|G3800590|         4|0.004910425786088755|
+|G5300710|        34|0.009968717670803194|
+|G1201050|        13|0.001119604680094...|
+|G4804550|        52|8.412231063560376E-4|
+|G4500890|         7|0.002119612414085465|
+|G4701690|         0|0.001375532696691...|
++--------+----------+--------------------+
+
+val predictions: Dataset[Row] = kMeansModel.transform(withFeaturesAssembled).select("gis_join", "features", "prediction")
+
+    +--------+----------+--------------------+
+    |gis_join|prediction|            distance|
+    +--------+----------+--------------------+
+    |G1901890|        20|0.001360450766169...|
+    |G3600770|        28| 0.00166924305036728|
+    |G4600710|        16|0.006433555715560622|
+    |G2700790|        20|0.001372933190314...|
+    |G3800590|         4|0.004910425786088755|
+    |G5300710|        34|0.009968717670803194|
+    |G1201050|        13|0.001119604680094...|
+    |G4804550|        52|8.412231063560376E-4|
+    |G4500890|         7|0.002119612414085465|
+    |G4701690|         0|0.001375532696691...|
+    +--------+----------+--------------------+
+var distances: Dataset[Row] = predictions.map( row => {
+  val prediction:   Int    = row.getInt(2)        // Cluster prediction
+  val featuresVect: Vector = row.getAs[Vector](1) // Normalized features
+  val centersVect:  Vector = centers(prediction)  // Normalized cluster centers
+  val distance = Vectors.sqdist(featuresVect, centersVect) // Squared dist between features and cluster centers
+
+  (row.getString(0), row.getInt(2), distance) // (String, Int, Double)
+}).toDF("gis_join", "prediction", "distance").as("distances")
+
+val closestPoints = Window.partitionBy("prediction").orderBy(col("distance").asc)
+distances = distances.withColumn("row",row_number.over(closestPoints)).where($"row" === 1).drop("row")
+distances.show()
+
+
+val clusterRows: Dataset[Row] = predictions.select("gis_join", "prediction").groupBy(col("prediction")).agg(collect_list("gis_join"))
