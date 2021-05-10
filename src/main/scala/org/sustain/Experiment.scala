@@ -123,7 +123,7 @@ class Experiment() extends Serializable {
   }
 
   def loadClusters(filename: String, numClusters: Int): Array[PCACluster] = {
-    val pcaClusters: Array[PCACluster] = Array[PCACluster](numClusters)
+    val pcaClusters: Array[PCACluster] = new Array[PCACluster](numClusters)
 
     val bufferedSource = Source.fromFile(filename)
     for (line <- bufferedSource.getLines) {
