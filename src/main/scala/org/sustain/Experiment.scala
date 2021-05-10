@@ -62,7 +62,7 @@ class Experiment() extends Serializable {
       // Wait until models are done being trained
       centroidModels.foreach(model => model.join())
     } catch {
-      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
+      case e: java.lang.IllegalMonitorStateException => println("\n\n>>>Caught IllegalMonitorStateException!")
     }
 
     println("\n\n>>> Initial center models done training\n")
@@ -83,14 +83,17 @@ class Experiment() extends Serializable {
     }
 
     try {
-      clusterModels.foreach(queue => queue.start())
-      clusterModels.foreach(queue => queue.wait())
+      clusterModels.foreach(cluster => cluster.start())
+      clusterModels.foreach(cluster => cluster.wait())
     } catch {
-      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
+      case e: java.lang.IllegalMonitorStateException => {
+        println("\n\n>>>Caught IllegalMonitorStateException!")
+        println(e.getMessage)
+      }
+
     }
 
     profiler.writeToFile("transfer_learning_profile.csv")
-    sparkSession.close()
   }
 
   def loadClusters(filename: String, numClusters: Int): Array[PCACluster] = {
