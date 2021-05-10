@@ -5,11 +5,12 @@ import org.apache.spark.SparkConf
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, RuntimeConfig, SparkSession}
 import org.apache.spark.sql.functions.col
 
 class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String, databaseC: String,
-                    collectionC: String, labelC: String, featuresC: Array[String], gisJoinC: String, clusterIdC: Int)
+                    collectionC: String, labelC: String, featuresC: Array[String], gisJoinC: String, clusterIdC: Int,
+                    sparkSessionC: SparkSession)
                     extends Thread with Serializable with Ordered[CentroidModel] {
 
   val linearRegression: LinearRegression = new LinearRegression()
@@ -21,6 +22,7 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
   val features: Array[String] = featuresC
   val gisJoin: String = gisJoinC
   val clusterId: Int = clusterIdC
+  val sparkSession: SparkSession = sparkSessionC
   //var mongoCollection: Dataset[Row] = mongoCollectionC
 
   /**
@@ -32,20 +34,13 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
     val taskName: String = "CentroidModel run() for GISJoin: %s, Cluster: %d, MongoS: %s".format(gisJoin, clusterId, mongoHostC)
     profiler.addTask(taskName)
 
-
-    val conf: SparkConf = new SparkConf()
-      .setMaster(this.sparkMaster)
-      .setAppName("Centroid Model for GISJoin [%s], Cluster [%d], MongoS [%s]".format(this.gisJoin, this.clusterId, mongoHostC))
-      .set("spark.executor.cores", "4")
-      .set("spark.executor.memory", "8G")
-      .set("spark.mongodb.input.uri", this.mongoUri)
-      .set("spark.mongodb.input.database", this.database)
-      .set("spark.mongodb.input.collection", this.collection)
-
-    // Create the SparkSession and ReadConfig
-    val sparkSession: SparkSession = SparkSession.builder()
-      .config(conf)
-      .getOrCreate() // For the $()-referenced columns
+    val sqlSession: SparkSession = this.sparkSession.newSession()
+    val config: RuntimeConfig = sqlSession.conf
+    config.set("spark.executor.cores", "4")
+    config.set("spark.executor.memory", "8G")
+    config.set("spark.mongodb.input.uri", this.mongoUri)
+    config.set("spark.mongodb.input.database", this.database)
+    config.set("spark.mongodb.input.collection", this.collection)
 
 
     /* Read collection into a DataSet[Row], dropping null rows, filter by this GISJoin, and timestep 0, and rename
@@ -65,12 +60,11 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
       |G3600770|         2010011000|       0|256.77488708496094|
       +--------+-------------------+--------+------------------+
      */
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
+    var mongoCollection: Dataset[Row] = MongoSpark.load(sqlSession)
     mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
       .na.drop().filter(
       col("gis_join") === this.gisJoin && col("timestep") === 0
     ).withColumnRenamed(this.label, "label")
-    //mongoCollection.show(10)
 
     /* Assemble into features
       +--------+-------------------+--------+------------------+------------+
@@ -95,7 +89,6 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
     mongoCollection = assembler.transform(mongoCollection)
 
     mongoCollection.persist()
-    //mongoCollection.show(11)
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42

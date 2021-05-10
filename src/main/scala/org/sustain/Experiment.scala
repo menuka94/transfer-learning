@@ -27,7 +27,7 @@ class Experiment() extends Serializable {
 
     pcaClusters.foreach{ println }
 
-    /*
+
     val conf: SparkConf = new SparkConf()
       .setMaster(sparkMaster)
       .setAppName(appName)
@@ -45,11 +45,11 @@ class Experiment() extends Serializable {
 
     import sparkSession.implicits._ // For the $()-referenced columns
 
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
-*/
+//    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
 
-    val testModel: CentroidModel = new CentroidModel(sparkMaster, "lattice-100", "27018",
-              database, collection, regressionLabel, regressionFeatures, "G3900350", 1)
+
+    val testModel: CentroidModel = new CentroidModel(sparkMaster, "lattice-101", "27018",
+              database, collection, regressionLabel, regressionFeatures, "G3900350", 1, sparkSession)
 
     testModel.run()
 

@@ -7,9 +7,10 @@ import java.io.File
 class Profiler {
 
   var tasks: ArrayBuffer[Task] = ArrayBuffer[Task]()
+  val jobBeginTimestampMs: Long = System.currentTimeMillis()
 
   def addTask(name: String): Unit = {
-    this.tasks += new Task(name, System.currentTimeMillis())
+    this.tasks += new Task(name, this.jobBeginTimestampMs)
   }
 
   def finishTask(name: String): Unit = {
