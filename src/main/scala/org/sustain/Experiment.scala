@@ -43,31 +43,33 @@ class Experiment() extends Serializable {
       .config(conf)
       .getOrCreate()
 
-
-
     import sparkSession.implicits._ // For the $()-referenced columns
 
     var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
 */
 
+    val testModel: CentroidModel = new CentroidModel(sparkMaster, "lattice-100", "27018",
+              database, collection, regressionLabel, regressionFeatures, "G3900350", 1)
+
+    testModel.run()
+
     // Create LR models for cluster centroid GISJoins
-    val centroidModels: Array[CentroidModel] = new Array[CentroidModel](pcaClusters.length)
-    for (cluster: PCACluster <- pcaClusters) {
-      val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
-      centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoHost, mongoPort,
-        database, collection, regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId)
-    }
-
-
-    try {
-      // Kick off training of LR models for center GISJoins
-      centroidModels.foreach(model => model.start())
-
-      // Wait until models are done being trained
-      centroidModels.foreach(model => model.join())
-    } catch {
-      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
-    }
+//    val centroidModels: Array[CentroidModel] = new Array[CentroidModel](pcaClusters.length)
+//    for (cluster: PCACluster <- pcaClusters) {
+//      val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
+//      centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoHost, mongoPort,
+//        database, collection, regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId)
+//    }
+//
+//    try {
+//      // Kick off training of LR models for center GISJoins
+//      centroidModels.foreach(model => model.start())
+//
+//      // Wait until models are done being trained
+//      centroidModels.foreach(model => model.join())
+//    } catch {
+//      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
+//    }
 
     println("\n\n>>> Initial center models done training\n")
     /*
