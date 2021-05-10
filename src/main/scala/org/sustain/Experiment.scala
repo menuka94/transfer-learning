@@ -133,6 +133,9 @@ class Experiment() extends Serializable {
         val clusterId: Int = cols(0).toInt
         val gisJoin: String = cols(1)
         val isCenter: Boolean = cols(2).toBoolean
+        if (pcaClusters(clusterId) == null) {
+          pcaClusters(clusterId) = new PCACluster()
+        }
 
         if (pcaClusters(clusterId).clusterId == -1) {
           pcaClusters(clusterId).clusterId = clusterId
