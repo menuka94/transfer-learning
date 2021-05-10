@@ -42,7 +42,7 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
       ), Some(ReadConfig(sparkSession))
     )
 
-    val persistTaskName: String = "Cluster Id %d: Persist after select, drop null, filter, column rename".format(this.clusterId)
+    val persistTaskName: String = "Persist after select, drop null, filter, column rename: [%d]".format(this.clusterId)
     this.profiler.addTask(persistTaskName)
 
     /* Read collection into a DataSet[Row], dropping null rows, filter by this GISJoin, and timestep 0, and rename
@@ -94,7 +94,7 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
-    val splitAndFitTaskName: String = "Cluster Id %d: split test/train, LR fit".format(this.clusterId)
+    val splitAndFitTaskName: String = "Split test/train, LR fit: [%d]".format(this.clusterId)
     this.profiler.addTask(splitAndFitTaskName)
     val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
 
@@ -103,7 +103,7 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
     this.profiler.finishTask(splitAndFitTaskName)
 
     // Use the model on the testing set, and evaluate results
-    val evaluateTaskName: String = "Cluster Id %d: evaluate LR model RMSE".format(this.clusterId)
+    val evaluateTaskName: String = "Evaluate LR model RMSE: [%d]".format(this.clusterId)
     val lrPredictions: DataFrame = lrModel.transform(test)
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> Test set RMSE for " + this.gisJoin + ": " + evaluator.evaluate(lrPredictions))
@@ -115,9 +115,9 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
 
   /**
    * Allows ordering of CentroidModel objects, sorted by ascending cluster id which the GISJoin belongs to.
-   * @param that The other Regression instance we are comparing ourselves to
-   * @return 0 if the cluster ids are equal, 1 if our cluster id is greater than the other Regression instance, and we
-   *         should come after "that", and -1 if our cluster id is less than the other Regression instance, and we
+   * @param that The other CentroidModel instance we are comparing ourselves to
+   * @return 0 if the cluster ids are equal, 1 if our cluster id is greater than the other CentroidModel instance, and we
+   *         should come after "that", and -1 if our cluster id is less than the other CentroidModel instance, and we
    *         should come before "that".
    */
   override def compare(that: CentroidModel): Int = {

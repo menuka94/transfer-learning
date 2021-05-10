@@ -10,13 +10,17 @@ class Profiler {
   val jobBeginTimestampMs: Long = System.currentTimeMillis()
 
   def addTask(name: String): Unit = {
-    this.tasks += new Task(name, this.jobBeginTimestampMs)
+    this.synchronized {
+      this.tasks += new Task(name, this.jobBeginTimestampMs)
+    }
   }
 
   def finishTask(name: String): Unit = {
-    for (task <- this.tasks) {
-      if (task.name == name) {
-        task.finish()
+    this.synchronized {
+      for (task <- this.tasks) {
+        if (task.name == name) {
+          task.finish()
+        }
       }
     }
   }

@@ -12,9 +12,10 @@ import com.mongodb.spark.MongoSpark
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.feature.VectorDisassembler
 import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
-import scala.io.Source
 
+import scala.io.Source
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters._
 
@@ -26,6 +27,7 @@ class Experiment() extends Serializable {
                        regressionLabel: String, pcaClusters: Array[PCACluster]): Unit = {
 
     val profiler: Profiler = new Profiler()
+    scala.util.Sorting.quickSort(pcaClusters)
 
     val conf: SparkConf = new SparkConf()
       .setMaster(sparkMaster)
@@ -64,38 +66,23 @@ class Experiment() extends Serializable {
     }
 
     println("\n\n>>> Initial center models done training\n")
-    profiler.writeToFile("transfer_learning_profile.csv")
-    sparkSession.close()
-    /*
-        // Sort trained models by their predicted cluster ID
-        scala.util.Sorting.quickSort(centroidModels)
 
-    */
+    // Sort trained models by their predicted cluster ID
+    scala.util.Sorting.quickSort(centroidModels)
 
-    /* Group together GISJoins which belong to the same cluster
-      +----------+----------------------+
-      |prediction|collect_list(gis_join)|
-      +----------+----------------------+
-      |        31|  [G3800670, G38009...|
-      |        53|  [G5500510, G35000...|
-      |        34|  [G3100250, G31013...|
-      |        28|  [G1701150, G36000...|
-      |        26|  [G1301790, G13022...|
-      |        27|  [G4100390, G13000...|
-      |        44|  [G5500150, G55008...|
-      |        12|  [G7200540, G72001...|
-      |        22|  [G3101030, G31014...|
-      |        47|  [G4800890, G48046...|
-      |         1|  [G1700990, G55012...|
-      ...
-      +----------+----------------------+
-     */
+    // Create ClusterLRModels models for cluster GISJoins
+    val clusterModels: Array[ClusterLRModels] = new Array[ClusterLRModels](pcaClusters.length)
+    for (cluster: PCACluster <- pcaClusters) {
+      val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
+      val mongoUri: String = "mongodb://%s:%s/".format(mongoHost, mongoPort)
+      val centroidModel: CentroidModel = centroidModels(cluster.clusterId)
+
+      clusterModels(cluster.clusterId) = new ClusterLRModels(sparkMaster, mongoUri, database, collection, cluster.clusterId,
+        cluster.clusterGisJoins.toArray, centroidModel.linearRegression, cluster.centerGisJoin, regressionFeatures,
+        regressionLabel, profiler, sparkSession)
+    }
 
     /*
-    val clusterRows: Dataset[Row] = predictions.select("gis_join", "prediction")
-      .groupBy(col("prediction"))
-      .agg(collect_list("gis_join"))
-
     // Collect clustered GISJoins into memory
     val clusters: Array[(Int, Array[String])] = clusterRows.collect()
       .map(
@@ -136,6 +123,8 @@ class Experiment() extends Serializable {
     }
 
      */
+    profiler.writeToFile("transfer_learning_profile.csv")
+    sparkSession.close()
   }
 
   def loadClusters(filename: String, numClusters: Int): Array[PCACluster] = {

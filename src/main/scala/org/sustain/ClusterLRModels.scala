@@ -1,6 +1,7 @@
 package org.sustain
 
 import com.mongodb.spark.MongoSpark
+import com.mongodb.spark.config.ReadConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.VectorAssembler
@@ -9,14 +10,13 @@ import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
-class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: String, databaseC: String,
-                      collectionC: String, clusterIdC: Int, gisJoinsC: Array[String],
-                      centroidEstimatorC: LinearRegression, centroidGisJoinC: String, featuresC: Array[String], labelC: String,
-                      originalCollectionC: Dataset[Row])
+class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String, collectionC: String, clusterIdC: Int,
+                      gisJoinsC: Array[String], centroidEstimatorC: LinearRegression, centroidGisJoinC: String,
+                      featuresC: Array[String], labelC: String, profilerC: Profiler, sparkSessionC: SparkSession)
                       extends Thread with Serializable {
 
   val sparkMaster: String = sparkMasterC
-  val mongoUri: String = "mongodb://%s:%s/".format(mongoHostC, mongoPortC)
+  val mongoUri: String = mongoUriC
   val database: String = databaseC
   val collection: String = collectionC
   val clusterId: Int = clusterIdC
@@ -25,60 +25,60 @@ class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: Stri
   val centroidEstimator: LinearRegression = centroidEstimatorC
   val features: Array[String] = featuresC
   val label: String = labelC
-  val mongoCollection: Dataset[Row] = originalCollectionC
+  val profiler: Profiler = profilerC
+  val sparkSession: SparkSession = sparkSessionC
 
   /**
    * Launched by the thread.start()
    */
   override def run(): Unit = {
-    println("\n\n>>> Fitting models for cluster " + clusterId)
+    val trainTaskName: String = "Train clusterId: %d, MongoURI: %s".format(this.clusterId, this.mongoUri)
+    this.profiler.addTask(trainTaskName)
+    println("\n\n" + trainTaskName)
 
-    /*
-    val conf: SparkConf = new SparkConf()
-      .setMaster(this.sparkMaster)
-      .setAppName("Cluster %d models, MongoS [%s]".format(this.clusterId, mongoHostC))
-      .set("spark.executor.cores", "2")
-      .set("spark.executor.memory", "1G")
-      .set("spark.mongodb.input.uri", this.mongoUri)
-      .set("spark.mongodb.input.database", this.database)
-      .set("spark.mongodb.input.collection", this.collection)
+    val readConfig: ReadConfig = ReadConfig(
+      Map(
+        "uri" -> this.mongoUri,
+        "database" -> this.database,
+        "collection" -> this.collection
+      ), Some(ReadConfig(this.sparkSession))
+    )
 
-    // Create the SparkSession and ReadConfig
-    val sparkSession: SparkSession = SparkSession.builder()
-      .config(conf)
-      .getOrCreate() // For the $()-referenced columns
+    val persistTaskName: String = "Cluster persist after select, drop null, filter, column rename: [%d]".format(this.clusterId)
+    this.profiler.addTask(persistTaskName)
 
+    /* Read collection into a DataSet[Row], dropping null rows, filter by any GISJoins in the cluster, timestep 0, and
+       rename the label column to "label"
+      +--------+-------------------+--------+------------------+
+      |gis_join|year_month_day_hour|timestep|             label|
+      +--------+-------------------+--------+------------------+
+      |G3600770|         2010011000|       0|258.02488708496094|
+      |G3600770|         2010011000|       0|257.64988708496094|
+      |G3600770|         2010011000|       0|257.39988708496094|
+      |G3600770|         2010011000|       0|257.14988708496094|
+      |G3600770|         2010011000|       0|257.39988708496094|
+      |G3600770|         2010011000|       0|256.89988708496094|
+      |G3600770|         2010011000|       0|256.64988708496094|
+      |G3600770|         2010011000|       0|256.77488708496094|
+      |G3600770|         2010011000|       0|257.14988708496094|
+      |G3600770|         2010011000|       0|256.77488708496094|
+      +--------+-------------------+--------+------------------+
      */
-
-    /* Read collection into a DataSet[Row], dropping null rows
-          +--------+-------------------+-------------------------+
-          |gis_join|year_month_day_hour|temp_surface_level_kelvin|
-          +--------+-------------------+-------------------------+
-          |G4804230|         2010010100|        281.4640808105469|
-          |G5600390|         2010010100|        265.2140808105469|
-          |G1701150|         2010010100|        265.7140808105469|
-          |G0601030|         2010010100|        282.9640808105469|
-          |G3701230|         2010010100|        279.2140808105469|
-          |G3700690|         2010010100|        280.8390808105469|
-          |G3701070|         2010010100|        280.9640808105469|
-          |G4803630|         2010010100|        275.7140808105469|
-          |G5108200|         2010010100|        273.4640808105469|
-          |G4801170|         2010010100|        269.3390808105469|
-          +--------+-------------------+-------------------------+
-         */
-    /*
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
-    mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "temp_surface_level_kelvin")
-      .na.drop()
-
-     */
+    var mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig)
+    mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
+      .na.drop().filter(
+      col("gis_join").isInCollection(this.gisJoins) && col("timestep") === 0
+    ).withColumnRenamed(this.label, "label")
     mongoCollection.persist() // Persist collection for reuse
+    this.profiler.finishTask(persistTaskName)
 
     // Iterate over all gisJoins in this collection, build models for each from persisted collection
-    gisJoins.foreach(
+    this.gisJoins.foreach(
       gisJoin => {
 
         // Filter the data down to just entries for a single GISJoin
+        val splitAndFitTaskName: String = "Filter, split test/train, LR fit: [%d][%s]".format(this.clusterId, gisJoin)
+        this.profiler.addTask(splitAndFitTaskName)
         var gisJoinCollection: Dataset[Row] = mongoCollection.filter(col("gis_join") === gisJoin)
           .withColumnRenamed(this.label, "label")
 
@@ -96,15 +96,19 @@ class ClusterLRModels(sparkMasterC: String, mongoHostC: String, mongoPortC: Stri
 
         // Create a linear regression model object and fit it to the training set
         val lrModel: LinearRegressionModel = linearRegression.fit(train)
+        this.profiler.finishTask(splitAndFitTaskName)
 
         // Use the model on the testing set, and evaluate results
+        val evaluateTaskName: String = "Evaluate RMSE: [%d][%s]".format(this.clusterId, gisJoin)
+        this.profiler.addTask(evaluateTaskName)
         val lrPredictions: DataFrame = lrModel.transform(test)
         val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
         println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(lrPredictions))
-
+        this.profiler.finishTask(evaluateTaskName)
       }
     )
 
+    this.profiler.finishTask(trainTaskName)
     mongoCollection.unpersist()
   }
 
