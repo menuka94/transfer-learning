@@ -25,17 +25,16 @@ class Experiment() extends Serializable {
                        database: String, collection: String, regressionFeatures: Array[String],
                        regressionLabel: String, pcaClusters: Array[PCACluster]): Unit = {
 
-    pcaClusters.foreach{ println }
-
+    val profiler: Profiler = new Profiler()
 
     val conf: SparkConf = new SparkConf()
       .setMaster(sparkMaster)
       .setAppName(appName)
       .set("spark.executor.cores", "8")
-      .set("spark.executor.memory", "20G")
-      .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
-      .set("spark.mongodb.input.database", database)
-      .set("spark.mongodb.input.collection", collection)
+      .set("spark.executor.memory", "10G")
+      .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort)) // default mongos router
+      .set("spark.mongodb.input.database", database) // sustaindb
+      .set("spark.mongodb.input.collection", collection) // noaa_nam
       //.set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
 
     // Create the SparkSession and ReadConfig
@@ -45,33 +44,28 @@ class Experiment() extends Serializable {
 
     import sparkSession.implicits._ // For the $()-referenced columns
 
-//    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
-
-
-    val testModel: CentroidModel = new CentroidModel(sparkMaster, "lattice-101", "27018",
-              database, collection, regressionLabel, regressionFeatures, "G3900350", 1, sparkSession)
-
-    testModel.run()
-
     // Create LR models for cluster centroid GISJoins
-//    val centroidModels: Array[CentroidModel] = new Array[CentroidModel](pcaClusters.length)
-//    for (cluster: PCACluster <- pcaClusters) {
-//      val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
-//      centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoHost, mongoPort,
-//        database, collection, regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId)
-//    }
-//
-//    try {
-//      // Kick off training of LR models for center GISJoins
-//      centroidModels.foreach(model => model.start())
-//
-//      // Wait until models are done being trained
-//      centroidModels.foreach(model => model.join())
-//    } catch {
-//      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
-//    }
+    val centroidModels: Array[CentroidModel] = new Array[CentroidModel](pcaClusters.length)
+    for (cluster: PCACluster <- pcaClusters) {
+      val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
+      val mongoUri: String = "mongodb://%s:%s/".format(mongoHost, mongoPort)
+      centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoUri, database, collection,
+        regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId, sparkSession, profiler)
+    }
+
+    try {
+      // Kick off training of LR models for center GISJoins
+      centroidModels.foreach(model => model.start())
+
+      // Wait until models are done being trained
+      centroidModels.foreach(model => model.join())
+    } catch {
+      case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
+    }
 
     println("\n\n>>> Initial center models done training\n")
+    profiler.writeToFile("transfer_learning_profile.csv")
+    sparkSession.close()
     /*
         // Sort trained models by their predicted cluster ID
         scala.util.Sorting.quickSort(centroidModels)
