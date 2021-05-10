@@ -49,10 +49,13 @@ object Main {
 
 
     val experiment: Experiment = new Experiment()
-    println("\n\n>>> Starting nanosecond timer\n")
-    time { experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-      MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K,
-      REGRESSION_FEATURES, REGRESSION_LABEL, PCA_FEATURES) }
+    //println("\n\n>>> Starting nanosecond timer\n")
+    //experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+    //  MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
+
+    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL,
+      experiment.loadClusters("clusters.csv", 56))
 
   }
 
