@@ -126,21 +126,25 @@ class Experiment() extends Serializable {
     val pcaClusters: Array[PCACluster] = new Array[PCACluster](numClusters)
 
     val bufferedSource = Source.fromFile(filename)
+    var lineNumber: Int = 0
     for (line <- bufferedSource.getLines) {
-      val cols = line.split(",").map(_.trim)
-      val clusterId: Int = cols(0).toInt
-      val gisJoin: String = cols(1)
-      val isCenter: Boolean = cols(2).toBoolean
+      if (lineNumber > 0) {
+        val cols = line.split(",").map(_.trim)
+        val clusterId: Int = cols(0).toInt
+        val gisJoin: String = cols(1)
+        val isCenter: Boolean = cols(2).toBoolean
 
-      if (pcaClusters(clusterId).clusterId == -1) {
-        pcaClusters(clusterId).clusterId = clusterId
-      }
+        if (pcaClusters(clusterId).clusterId == -1) {
+          pcaClusters(clusterId).clusterId = clusterId
+        }
 
-      if (isCenter) {
-        pcaClusters(clusterId).centerGisJoin = gisJoin
-      } else {
-        pcaClusters(clusterId).clusterGisJoins += gisJoin
+        if (isCenter) {
+          pcaClusters(clusterId).centerGisJoin = gisJoin
+        } else {
+          pcaClusters(clusterId).clusterGisJoins += gisJoin
+        }
       }
+      lineNumber += 1
     }
     bufferedSource.close
 
