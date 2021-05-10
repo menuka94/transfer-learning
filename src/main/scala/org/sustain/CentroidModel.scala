@@ -32,8 +32,8 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
     val conf: SparkConf = new SparkConf()
       .setMaster(this.sparkMaster)
       .setAppName("Centroid Model for GISJoin [%s], Cluster [%d], MongoS [%s]".format(this.gisJoin, this.clusterId, mongoHostC))
-      .set("spark.executor.cores", "4")
-      .set("spark.executor.memory", "8G")
+      .set("spark.executor.cores", "8")
+      .set("spark.executor.memory", "20G")
       .set("spark.mongodb.input.uri", this.mongoUri)
       .set("spark.mongodb.input.database", this.database)
       .set("spark.mongodb.input.collection", this.collection)
@@ -62,15 +62,20 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
     var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
     mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
       .na.drop()
+    mongoCollection.show(10)
 
     // Filter the data down to just entries for a single GISJoin
-    var gisJoinCollection: Dataset[Row] = mongoCollection.filter(col("gis_join") === this.gisJoin)
-      .withColumnRenamed(this.label, "label")
+    var gisJoinCollection: Dataset[Row] = mongoCollection.filter(
+      col("gis_join") === this.gisJoin && col("timestep") === 0
+      ).withColumnRenamed(this.label, "label")
+
+    gisJoinCollection.show(20)
 
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(this.features)
       .setOutputCol("features")
     gisJoinCollection = assembler.transform(gisJoinCollection)
+    gisJoinCollection.show(20)
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42

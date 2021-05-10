@@ -13,6 +13,6 @@ class PCACluster {
    * @return String representation of PCACluster
    */
   override def toString: String = {
-    "%d:%s:%s".format(clusterId, centerGisJoin, clusterGisJoins.toString())
+    "%d:%s:%s\n".format(clusterId, centerGisJoin, clusterGisJoins.toString())
   }
 }

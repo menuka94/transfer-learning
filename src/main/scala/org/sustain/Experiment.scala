@@ -27,17 +27,31 @@ class Experiment() extends Serializable {
 
     pcaClusters.foreach{ println }
 
+    val conf: SparkConf = new SparkConf()
+      .setMaster(sparkMaster)
+      .setAppName(appName)
+      .set("spark.executor.cores", "8")
+      .set("spark.executor.memory", "20G")
+      .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
+      .set("spark.mongodb.input.database", database)
+      .set("spark.mongodb.input.collection", collection)
+      .set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
+
+    // Create the SparkSession and ReadConfig
+    val sparkConnector: SparkSession = SparkSession.builder()
+      .config(conf)
+      .getOrCreate()
+
+    import sparkConnector.implicits._ // For the $()-referenced columns
+
     // Create LR models for cluster centroid GISJoins
-    /*
-    val centroidModels: Array[CentroidModel] = new Array[CentroidModel](gisJoinCenters.length)
-    for (i <- gisJoinCenters.indices) {
-      val gisJoin: String = gisJoinCenters(i)._1
-      val clusterId: Int = gisJoinCenters(i)._2
-      val mongoHost: String = mongosRouters(clusterId % mongosRouters.length) // choose a mongos router
-      val centroidModel: CentroidModel = new CentroidModel(sparkMaster, mongoHost, mongoPort,
-        database, collection, regressionLabel, regressionFeatures, gisJoin, clusterId)
-      centroidModels(clusterId) = centroidModel
+    val centroidModels: Array[CentroidModel] = new Array[CentroidModel](pcaClusters.length)
+    for (cluster: PCACluster <- pcaClusters) {
+      val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
+      centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoHost, mongoPort,
+        database, collection, regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId)
     }
+
 
     try {
       // Kick off training of LR models for center GISJoins
@@ -50,11 +64,11 @@ class Experiment() extends Serializable {
     }
 
     println("\n\n>>> Initial center models done training\n")
+    /*
+        // Sort trained models by their predicted cluster ID
+        scala.util.Sorting.quickSort(centroidModels)
 
-    // Sort trained models by their predicted cluster ID
-    scala.util.Sorting.quickSort(centroidModels)
-
-     */
+    */
 
     /* Group together GISJoins which belong to the same cluster
       +----------+----------------------+
