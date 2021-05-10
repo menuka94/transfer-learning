@@ -27,6 +27,7 @@ class Experiment() extends Serializable {
 
     pcaClusters.foreach{ println }
 
+    /*
     val conf: SparkConf = new SparkConf()
       .setMaster(sparkMaster)
       .setAppName(appName)
@@ -35,23 +36,26 @@ class Experiment() extends Serializable {
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
       .set("spark.mongodb.input.database", database)
       .set("spark.mongodb.input.collection", collection)
-      .set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
+      //.set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
 
     // Create the SparkSession and ReadConfig
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
       .getOrCreate()
 
+
+
     import sparkSession.implicits._ // For the $()-referenced columns
 
     var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
+*/
 
     // Create LR models for cluster centroid GISJoins
     val centroidModels: Array[CentroidModel] = new Array[CentroidModel](pcaClusters.length)
     for (cluster: PCACluster <- pcaClusters) {
       val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
       centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoHost, mongoPort,
-        database, collection, regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId, mongoCollection)
+        database, collection, regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId)
     }
 
 
