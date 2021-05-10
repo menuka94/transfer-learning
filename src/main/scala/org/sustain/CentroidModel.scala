@@ -36,8 +36,6 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
 
     val sqlSession: SparkSession = this.sparkSession.newSession()
     val config: RuntimeConfig = sqlSession.conf
-    config.set("spark.executor.cores", "4")
-    config.set("spark.executor.memory", "8G")
     config.set("spark.mongodb.input.uri", this.mongoUri)
     config.set("spark.mongodb.input.database", this.database)
     config.set("spark.mongodb.input.collection", this.collection)
