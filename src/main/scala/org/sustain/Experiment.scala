@@ -82,47 +82,13 @@ class Experiment() extends Serializable {
         regressionLabel, profiler, sparkSession)
     }
 
-    /*
-    // Collect clustered GISJoins into memory
-    val clusters: Array[(Int, Array[String])] = clusterRows.collect()
-      .map(
-        row => {
-          val gisJoins: Array[String] = row.getList[String](1).asScala.toArray
-          (row.getInt(0), gisJoins)
-        }
-      )
-
-    // Build K queues of models to be trained, 1 queue per cluster
-    // For 3192 GISJoins this is sqrt(3192) = ~56 queues, each with ~57 models to be trained (since cluster sizes vary,
-    // some queues may be shorter and others larger)
-    val clustersQueues: Array[ClusterLRModels] = new Array[ClusterLRModels](gisJoinCenters.length)
-    clusters.foreach(
-      cluster => { // (31, [G3800670, G38009, ...])
-        val clusterId: Int = cluster._1
-        val gisJoins: Array[String] = cluster._2
-        val center: (String, Int) = gisJoinCenters(clusterId)
-        val centerGisJoin: String = center._1
-        val trainedRegression: CentroidModel = centroidModels(clusterId)
-        val trainedModel: LinearRegression = trainedRegression.linearRegression
-        val mongoRouterHost: String = mongosRouters(clusterId % mongosRouters.length)
-        clustersQueues(clusterId) = new ClusterLRModels(sparkMaster, mongoRouterHost, mongoPort, database, collection,
-          clusterId, gisJoins, trainedModel, centerGisJoin, regressionFeatures, regressionLabel, mongoCollection)
-      }
-    )
-
-    // --- DEBUGGING ---
-    println("\n\n>>> MODEL QUEUES <<<\n")
-    clustersQueues.foreach{ println }
-
-
     try {
-      clustersQueues.foreach(queue => queue.start())
-      clustersQueues.foreach(queue => queue.wait())
+      clusterModels.foreach(queue => queue.start())
+      clusterModels.foreach(queue => queue.wait())
     } catch {
       case e: java.lang.IllegalMonitorStateException => println("\n\nn>>>Caught IllegalMonitorStateException!")
     }
 
-     */
     profiler.writeToFile("transfer_learning_profile.csv")
     sparkSession.close()
   }
