@@ -139,7 +139,7 @@ class Experiment() extends Serializable {
       if (isCenter) {
         pcaClusters(clusterId).centerGisJoin = gisJoin
       } else {
-        pcaClusters(clusterId).clusterGisJoins += gisJoin
+        pcaClusters(clusterId).clusterGisJoins ++= gisJoin
       }
     }
     bufferedSource.close
