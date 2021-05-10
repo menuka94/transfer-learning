@@ -7,6 +7,7 @@ import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.{DataFrame, Dataset, Row, RuntimeConfig, SparkSession}
 import org.apache.spark.sql.functions.col
+import com.mongodb.spark.config._
 
 class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String, databaseC: String,
                     collectionC: String, labelC: String, featuresC: Array[String], gisJoinC: String, clusterIdC: Int,
@@ -34,11 +35,13 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
     val taskName: String = "CentroidModel run() for GISJoin: %s, Cluster: %d, MongoS: %s".format(gisJoin, clusterId, mongoHostC)
     profiler.addTask(taskName)
 
-    val sqlSession: SparkSession = this.sparkSession.newSession()
-    val config: RuntimeConfig = sqlSession.conf
-    config.set("spark.mongodb.input.uri", this.mongoUri)
-    config.set("spark.mongodb.input.database", this.database)
-    config.set("spark.mongodb.input.collection", this.collection)
+    val readConfig: ReadConfig = ReadConfig(
+      Map(
+        "uri" -> this.mongoUri,
+        "database" -> this.database,
+        "collection" -> this.collection
+      ), Some(ReadConfig(sparkSession))
+    )
 
 
     /* Read collection into a DataSet[Row], dropping null rows, filter by this GISJoin, and timestep 0, and rename
@@ -58,7 +61,7 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
       |G3600770|         2010011000|       0|256.77488708496094|
       +--------+-------------------+--------+------------------+
      */
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sqlSession)
+    var mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig)
     mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
       .na.drop().filter(
       col("gis_join") === this.gisJoin && col("timestep") === 0
