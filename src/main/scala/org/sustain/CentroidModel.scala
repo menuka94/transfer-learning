@@ -27,7 +27,10 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
    * Launched by the thread.start()
    */
   override def run(): Unit = {
+    val profiler: Profiler = new Profiler()
     println("\n\n>>> Fitting centroid model for GISJoin " + gisJoin + ", cluster " + clusterId + ", mongos " + mongoHostC)
+    val taskName: String = "CentroidModel run() for GISJoin: %s, Cluster: %d, MongoS: %s".format(gisJoin, clusterId, mongoHostC)
+    profiler.addTask(taskName)
 
 
     val conf: SparkConf = new SparkConf()
@@ -67,7 +70,7 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
       .na.drop().filter(
       col("gis_join") === this.gisJoin && col("timestep") === 0
     ).withColumnRenamed(this.label, "label")
-    mongoCollection.show(10)
+    //mongoCollection.show(10)
 
     /* Assemble into features
       +--------+-------------------+--------+------------------+------------+
@@ -90,7 +93,7 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
       .setInputCols(this.features)
       .setOutputCol("features")
     mongoCollection = assembler.transform(mongoCollection)
-    mongoCollection.show(11)
+    //mongoCollection.show(11)
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
@@ -104,6 +107,8 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> Test set RMSE for " + this.gisJoin + ": " + evaluator.evaluate(lrPredictions))
 
+    profiler.finishTask(taskName)
+    profiler.writeToFile("transfer_learning_profile.csv")
     sparkSession.close()
   }
 
