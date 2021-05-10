@@ -93,6 +93,8 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
       .setInputCols(this.features)
       .setOutputCol("features")
     mongoCollection = assembler.transform(mongoCollection)
+
+    mongoCollection.persist()
     //mongoCollection.show(11)
 
     // Split input into testing set and training set:
@@ -109,6 +111,8 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
 
     profiler.finishTask(taskName)
     profiler.writeToFile("transfer_learning_profile.csv")
+
+    mongoCollection.unpersist()
     sparkSession.close()
   }
 

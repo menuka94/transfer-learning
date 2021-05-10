@@ -1,17 +1,17 @@
 package org.sustain
 
-class Task(nameC: String) {
+class Task(nameC: String, jobBeginTimestampMs: Long) {
 
   val name: String = nameC
-  val beginTimestamp: Long = System.nanoTime()
+  val beginTimestamp: Long = System.currentTimeMillis() - jobBeginTimestampMs
   var endTimestamp: Long = -1L
 
   def finish(): Unit = {
-    this.endTimestamp = System.nanoTime()
+    this.endTimestamp = System.currentTimeMillis() - jobBeginTimestampMs
   }
 
-  def timeTaken(): Long = {
-    this.endTimestamp - this.beginTimestamp
+  def timeTakenSec(): Double = {
+    (this.endTimestamp - this.beginTimestamp) / 1000
   }
 
   /**
@@ -19,7 +19,7 @@ class Task(nameC: String) {
    * @return String representation of Task
    */
   override def toString: String = {
-    "%s,%d,%d,%d".format(this.name, this.beginTimestamp, this.endTimestamp, this.timeTaken())
+    "%s,%d,%d,%.2f".format(this.name, this.beginTimestamp, this.endTimestamp, this.timeTakenSec())
   }
 
 }
