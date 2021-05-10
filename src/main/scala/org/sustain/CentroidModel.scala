@@ -9,7 +9,8 @@ import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.col
 
 class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String, databaseC: String,
-                    collectionC: String, labelC: String, featuresC: Array[String], gisJoinC: String, clusterIdC: Int)
+                    collectionC: String, labelC: String, featuresC: Array[String], gisJoinC: String, clusterIdC: Int,
+                    mongoCollectionC: Dataset[Row])
                     extends Thread with Serializable with Ordered[CentroidModel] {
 
   val linearRegression: LinearRegression = new LinearRegression()
@@ -21,7 +22,7 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
   val features: Array[String] = featuresC
   val gisJoin: String = gisJoinC
   val clusterId: Int = clusterIdC
-
+  var mongoCollection: Dataset[Row] = mongoCollectionC
 
   /**
    * Launched by the thread.start()
@@ -29,6 +30,7 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
   override def run(): Unit = {
     println("\n\n>>> Fitting centroid model for GISJoin " + gisJoin + ", cluster " + clusterId)
 
+    /*
     val conf: SparkConf = new SparkConf()
       .setMaster(this.sparkMaster)
       .setAppName("Centroid Model for GISJoin [%s], Cluster [%d], MongoS [%s]".format(this.gisJoin, this.clusterId, mongoHostC))
@@ -60,7 +62,9 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
       ...
       +--------+-------------------+--------+-------------------------+
      */
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
+    //var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
+
+     */
     mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
       .na.drop().filter(
       col("gis_join") === this.gisJoin && col("timestep") === 0
@@ -85,7 +89,7 @@ class CentroidModel(sparkMasterC: String, mongoHostC: String, mongoPortC: String
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> Test set RMSE for " + this.gisJoin + ": " + evaluator.evaluate(lrPredictions))
 
-    sparkSession.close()
+    //sparkSession.close()
   }
 
   /**
