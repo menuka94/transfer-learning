@@ -32,7 +32,7 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
    * Launched by the thread.start()
    */
   override def run(): Unit = {
-    val trainTaskName: String = "ClusterLRModels:run(mongoUri=%s):gisJoin=%s:clusterId=%d".format(this.mongoUri, this.centroidGisJoin, this.clusterId)
+    val trainTaskName: String = "ClusterLRModels;run(mongoUri=%s);gisJoin=%s;clusterId=%d".format(this.mongoUri, this.centroidGisJoin, this.clusterId)
     val trainTaskId: Int = this.profiler.addTask(trainTaskName)
 
     val readConfig: ReadConfig = ReadConfig(
@@ -43,8 +43,8 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
       ), Some(ReadConfig(this.sparkSession))
     )
 
-    val persistTaskName: String = ("ClusterLRModels:Cluster persist after select, drop null, filter, column rename:" +
-      "gisJoin=%s:clusterId=%d").format(this.centroidGisJoin, this.clusterId)
+    val persistTaskName: String = ("ClusterLRModels;Cluster persist after select + drop null + filter + column rename;" +
+      "gisJoin=%s;clusterId=%d").format(this.centroidGisJoin, this.clusterId)
     val persistTaskId: Int = this.profiler.addTask(persistTaskName)
 
     /* Read collection into a DataSet[Row], dropping null rows, filter by any GISJoins in the cluster, timestep 0, and
@@ -77,7 +77,7 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
       gisJoin => {
 
         // Filter the data down to just entries for a single GISJoin
-        val splitAndFitTaskName: String = "ClusterLRModels:Filter, split test/train, LR fit:gisJoin=%s:clusterId=%d".format(gisJoin, this.clusterId)
+        val splitAndFitTaskName: String = "ClusterLRModels;Filter + split test/train + LR fit;gisJoin=%s;clusterId=%d".format(gisJoin, this.clusterId)
         val splitAndFitTaskId: Int = this.profiler.addTask(splitAndFitTaskName)
 
         var gisJoinCollection: Dataset[Row] = mongoCollection.filter(col("gis_join") === gisJoin)
@@ -100,7 +100,7 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
         this.profiler.finishTask(splitAndFitTaskId, System.currentTimeMillis())
 
         // Use the model on the testing set, and evaluate results
-        val evaluateTaskName: String = "ClusterLRModels:Evaluate RMSE:gisJoin=%s:clusterId=%d".format(gisJoin, this.clusterId)
+        val evaluateTaskName: String = "ClusterLRModels;Evaluate RMSE;gisJoin=%s;clusterId=%d".format(gisJoin, this.clusterId)
         val evaluateTaskId: Int = this.profiler.addTask(evaluateTaskName)
         val lrPredictions: DataFrame = lrModel.transform(test)
         val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
