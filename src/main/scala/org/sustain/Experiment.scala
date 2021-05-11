@@ -90,6 +90,10 @@ class Experiment() extends Serializable {
       case e: java.lang.IllegalMonitorStateException => {
         println("\n\n>>>Caught IllegalMonitorStateException!")
         println(e.getMessage)
+
+        // Safe cleanup
+        sparkSession.close()
+        return
       }
 
     }
