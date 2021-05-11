@@ -79,7 +79,6 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
         // Filter the data down to just entries for a single GISJoin
         val splitAndFitTaskName: String = "ClusterLRModels:Filter, split test/train, LR fit:gisJoin=%s:clusterId=%d".format(gisJoin, this.clusterId)
         val splitAndFitTaskId: Int = this.profiler.addTask(splitAndFitTaskName)
-        println("\n\n>>> START TASK %s ; splitAndFitTaskId=%d".format(splitAndFitTaskName, splitAndFitTaskId))
 
         var gisJoinCollection: Dataset[Row] = mongoCollection.filter(col("gis_join") === gisJoin)
           .withColumnRenamed(this.label, "label")
