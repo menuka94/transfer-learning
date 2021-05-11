@@ -30,8 +30,8 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
    * Launched by the thread.start()
    */
   override def run(): Unit = {
-    val trainTaskName: String = "Train GISJoin: %s, ClusterId: %d, MongoURI: %s".format(this.gisJoin, this.clusterId, this.mongoUri)
-    this.profiler.addTask(trainTaskName)
+    val trainTaskName: String = "CentroidModel:run(mongoUri=%s):gisJoin=%s:clusterId=%d".format(this.mongoUri, this.gisJoin, this.clusterId)
+    val trainTaskId: Int = this.profiler.addTask(trainTaskName)
     println("\n\n" + trainTaskName)
 
     val readConfig: ReadConfig = ReadConfig(
@@ -42,8 +42,9 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
       ), Some(ReadConfig(sparkSession))
     )
 
-    val persistTaskName: String = "Persist after select, drop null, filter, column rename: [%d]".format(this.clusterId)
-    this.profiler.addTask(persistTaskName)
+    val persistTaskName: String = ("CentroidModel:Persist Dataframe after select, drop null, filter, column " +
+      "rename:gisJoin=%s:clusterId=%d").format(this.gisJoin, this.clusterId)
+    val persistTaskId: Int = this.profiler.addTask(persistTaskName)
 
     /* Read collection into a DataSet[Row], dropping null rows, filter by this GISJoin, and timestep 0, and rename
        the label column to "label"
@@ -90,26 +91,27 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
       .setOutputCol("features")
     mongoCollection = assembler.transform(mongoCollection)
     mongoCollection.persist()
-    this.profiler.finishTask(persistTaskName)
+    this.profiler.finishTask(persistTaskId)
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
-    val splitAndFitTaskName: String = "Split test/train, LR fit: [%d]".format(this.clusterId)
-    this.profiler.addTask(splitAndFitTaskName)
+    val splitAndFitTaskName: String = "CentroidModel:Split test/train, LR fit:gisJoin=%s:clusterId=%d".format(this.gisJoin, this.clusterId)
+    val splitAndFitTaskId: Int = this.profiler.addTask(splitAndFitTaskName)
     val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
 
     // Create a linear regression model object and fit it to the training set
     val lrModel: LinearRegressionModel = this.linearRegression.fit(train)
-    this.profiler.finishTask(splitAndFitTaskName)
+    this.profiler.finishTask(splitAndFitTaskId)
 
     // Use the model on the testing set, and evaluate results
-    val evaluateTaskName: String = "Evaluate LR model RMSE: [%d]".format(this.clusterId)
+    val evaluateTaskName: String = "CentroidModel:Evaluate LR model RMSE:gisJoin=%s:clusterId=%d".format(this.gisJoin, this.clusterId)
+    val evaluateTaskId: Int = this.profiler.addTask(evaluateTaskName)
     val lrPredictions: DataFrame = lrModel.transform(test)
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> Test set RMSE for " + this.gisJoin + ": " + evaluator.evaluate(lrPredictions))
-    this.profiler.finishTask(evaluateTaskName)
+    this.profiler.finishTask(evaluateTaskId)
 
-    this.profiler.finishTask(trainTaskName)
+    this.profiler.finishTask(trainTaskId)
     mongoCollection.unpersist()
   }
 

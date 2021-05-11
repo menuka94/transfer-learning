@@ -27,6 +27,7 @@ class Experiment() extends Serializable {
                        regressionLabel: String, pcaClusters: Array[PCACluster]): Unit = {
 
     val profiler: Profiler = new Profiler()
+    val experimentTaskId: Int = profiler.addTask("Experiment")
     scala.util.Sorting.quickSort(pcaClusters)
 
     val conf: SparkConf = new SparkConf()
@@ -93,6 +94,7 @@ class Experiment() extends Serializable {
 
     }
 
+    profiler.finishTask(experimentTaskId)
     profiler.writeToFile("transfer_learning_profile.csv")
   }
 

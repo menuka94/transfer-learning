@@ -9,19 +9,16 @@ class Profiler {
   var tasks: ArrayBuffer[Task] = ArrayBuffer[Task]()
   val jobBeginTimestampMs: Long = System.currentTimeMillis()
 
-  def addTask(name: String): Unit = {
+  def addTask(name: String): Int = {
     this.synchronized {
       this.tasks += new Task(name, this.jobBeginTimestampMs)
+      this.tasks.length - 1
     }
   }
 
-  def finishTask(name: String): Unit = {
+  def finishTask(id: Int): Unit = {
     this.synchronized {
-      for (task <- this.tasks) {
-        if (task.name == name) {
-          task.finish()
-        }
-      }
+      this.tasks(id).finish()
     }
   }
 
