@@ -34,7 +34,6 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
   override def run(): Unit = {
     val trainTaskName: String = "ClusterLRModels:run(mongoUri=%s):gisJoin=%s:clusterId=%d".format(this.mongoUri, this.centroidGisJoin, this.clusterId)
     val trainTaskId: Int = this.profiler.addTask(trainTaskName)
-    println("\n\n>>> START TASK %s ; trainTaskId=%d".format(trainTaskName, trainTaskId))
 
     val readConfig: ReadConfig = ReadConfig(
       Map(
@@ -47,7 +46,6 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
     val persistTaskName: String = ("ClusterLRModels:Cluster persist after select, drop null, filter, column rename:" +
       "gisJoin=%s:clusterId=%d").format(this.centroidGisJoin, this.clusterId)
     val persistTaskId: Int = this.profiler.addTask(persistTaskName)
-    println("\n\n>>> START TASK %s ; persistTaskId=%d".format(persistTaskName, persistTaskId))
 
     /* Read collection into a DataSet[Row], dropping null rows, filter by any GISJoins in the cluster, timestep 0, and
        rename the label column to "label"
@@ -72,8 +70,7 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
       col("gis_join").isInCollection(this.gisJoins) && col("timestep") === 0
     ).withColumnRenamed(this.label, "label")
     mongoCollection.persist() // Persist collection for reuse
-    this.profiler.finishTask(persistTaskId)
-    println("\n\n>>> END TASK %s ; persistTaskId=%d".format(persistTaskName, persistTaskId))
+    this.profiler.finishTask(persistTaskId, System.currentTimeMillis())
 
     // Iterate over all gisJoins in this collection, build models for each from persisted collection
     this.gisJoins.foreach(
@@ -101,23 +98,19 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
 
         // Create a linear regression model object and fit it to the training set
         val lrModel: LinearRegressionModel = linearRegression.fit(train)
-        this.profiler.finishTask(splitAndFitTaskId)
-        println("\n\n>>> END TASK %s ; splitAndFitTaskId=%d".format(splitAndFitTaskName, splitAndFitTaskId))
+        this.profiler.finishTask(splitAndFitTaskId, System.currentTimeMillis())
 
         // Use the model on the testing set, and evaluate results
         val evaluateTaskName: String = "ClusterLRModels:Evaluate RMSE:gisJoin=%s:clusterId=%d".format(gisJoin, this.clusterId)
         val evaluateTaskId: Int = this.profiler.addTask(evaluateTaskName)
-        println("\n\n>>> START TASK %s ; evaluateTaskId=%d".format(evaluateTaskName, evaluateTaskId))
         val lrPredictions: DataFrame = lrModel.transform(test)
         val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
         println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(lrPredictions))
-        this.profiler.finishTask(evaluateTaskId)
-        println("\n\n>>> END TASK %s ; evaluateTaskId=%d".format(evaluateTaskName, evaluateTaskId))
+        this.profiler.finishTask(evaluateTaskId, System.currentTimeMillis())
       }
     )
 
-    this.profiler.finishTask(trainTaskId)
-    println("\n\n>>> START TASK %s ; trainTaskId=%d".format(trainTaskName, trainTaskId))
+    this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
     mongoCollection.unpersist()
   }
 

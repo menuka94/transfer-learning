@@ -91,7 +91,7 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
       .setOutputCol("features")
     mongoCollection = assembler.transform(mongoCollection)
     mongoCollection.persist()
-    this.profiler.finishTask(persistTaskId)
+    this.profiler.finishTask(persistTaskId, System.currentTimeMillis())
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
@@ -101,7 +101,7 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
 
     // Create a linear regression model object and fit it to the training set
     val lrModel: LinearRegressionModel = this.linearRegression.fit(train)
-    this.profiler.finishTask(splitAndFitTaskId)
+    this.profiler.finishTask(splitAndFitTaskId, System.currentTimeMillis())
 
     // Use the model on the testing set, and evaluate results
     val evaluateTaskName: String = "CentroidModel:Evaluate LR model RMSE:gisJoin=%s:clusterId=%d".format(this.gisJoin, this.clusterId)
@@ -109,9 +109,9 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
     val lrPredictions: DataFrame = lrModel.transform(test)
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> Test set RMSE for " + this.gisJoin + ": " + evaluator.evaluate(lrPredictions))
-    this.profiler.finishTask(evaluateTaskId)
+    this.profiler.finishTask(evaluateTaskId, System.currentTimeMillis())
 
-    this.profiler.finishTask(trainTaskId)
+    this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
     mongoCollection.unpersist()
   }
 

@@ -6,8 +6,8 @@ class Task(nameC: String, jobBeginTimestampMs: Long) {
   val beginTimestamp: Long = System.currentTimeMillis() - jobBeginTimestampMs
   var endTimestamp: Long = -1L
 
-  def finish(): Unit = {
-    this.endTimestamp = System.currentTimeMillis() - jobBeginTimestampMs
+  def finish(timestamp: Long): Unit = {
+    this.endTimestamp = timestamp - jobBeginTimestampMs
   }
 
   def timeTakenSec(): Double = {
