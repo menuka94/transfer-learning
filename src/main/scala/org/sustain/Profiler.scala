@@ -16,9 +16,15 @@ class Profiler {
     }
   }
 
-  def finishTask(id: Int): Unit = {
+  def finishTask(id: Int): Boolean = {
     this.synchronized {
-      this.tasks(id).finish()
+      if (this.tasks(id).endTimestamp == -1) {
+        this.tasks(id).finish()
+        true
+      } else {
+        println("\n\nERROR: TASK %s ALREADY FINISHED: %s", id, tasks(id))
+        false
+      }
     }
   }
 
