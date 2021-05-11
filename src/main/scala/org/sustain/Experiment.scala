@@ -103,6 +103,7 @@ class Experiment() extends Serializable {
 
     profiler.finishTask(experimentTaskId)
     profiler.writeToFile("transfer_learning_profile.csv")
+    profiler.close()
   }
 
   def loadClusters(filename: String, numClusters: Int): Array[PCACluster] = {
