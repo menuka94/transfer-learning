@@ -84,8 +84,11 @@ class Experiment() extends Serializable {
     }
 
     try {
+      // Kick off training of LR models for all clusters
       clusterModels.foreach(cluster => cluster.start())
-      clusterModels.foreach(cluster => cluster.wait())
+
+      // Wait until models are done being trained
+      clusterModels.foreach(cluster => cluster.join())
     } catch {
       case e: java.lang.IllegalMonitorStateException => {
         println("\n\n>>>Caught IllegalMonitorStateException!")
