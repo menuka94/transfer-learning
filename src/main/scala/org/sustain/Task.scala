@@ -11,7 +11,7 @@ class Task(nameC: String, jobBeginTimestampMs: Long) {
   }
 
   def timeTakenSec(): Double = {
-    (this.endTimestamp - this.beginTimestamp) / 1000
+    (this.endTimestamp - this.beginTimestamp) / 1000.0
   }
 
   /**
