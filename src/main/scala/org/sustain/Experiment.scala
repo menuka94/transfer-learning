@@ -24,7 +24,7 @@ class Experiment() extends Serializable {
 
   def transferLearning(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
                        database: String, collection: String, regressionFeatures: Array[String],
-                       regressionLabel: String, pcaClusters: Array[PCACluster]): Unit = {
+                       regressionLabel: String, profileOutput: String, pcaClusters: Array[PCACluster]): Unit = {
 
     val profiler: Profiler = new Profiler()
     val experimentTaskId: Int = profiler.addTask("Experiment")
@@ -102,7 +102,7 @@ class Experiment() extends Serializable {
     }
 
     profiler.finishTask(experimentTaskId)
-    profiler.writeToFile("transfer_learning_profile.csv")
+    profiler.writeToFile(profileOutput)
     profiler.close()
   }
 
