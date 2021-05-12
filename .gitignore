@@ -2,5 +2,4 @@
 .bsp/
 project/
 target/
-transfer_learning_profile.csv
 *-checkpoint.ipynb
