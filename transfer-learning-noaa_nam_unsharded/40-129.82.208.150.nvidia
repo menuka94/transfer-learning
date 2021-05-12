@@ -1,0 +1,2 @@
+nohup: unrecognized option '--query-gpu=timestamp,utilization.gpu,utilization.memory'
+Try 'nohup --help' for more information.
