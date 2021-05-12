@@ -104,6 +104,9 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
     val lrModel: LinearRegressionModel = this.linearRegression.fit(train)
     this.profiler.finishTask(splitAndFitTaskId, System.currentTimeMillis())
 
+    val totalIterations: Int = lrModel.summary.totalIterations
+    writeTotalIterations(gisJoin, totalIterations)
+
     // Use the model on the testing set, and evaluate results
     val evaluateTaskName: String = "CentroidModel;Evaluate LR model RMSE;gisJoin=%s;clusterId=%d".format(this.gisJoin, this.clusterId)
     val evaluateTaskId: Int = this.profiler.addTask(evaluateTaskName)
