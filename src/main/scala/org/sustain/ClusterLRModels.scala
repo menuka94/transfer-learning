@@ -10,6 +10,8 @@ import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
+import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+
 class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String, collectionC: String, clusterIdC: Int,
                       gisJoinsC: Array[String], centroidEstimatorC: LinearRegression, centroidGisJoinC: String,
                       featuresC: Array[String], labelC: String, profilerC: Profiler, sparkSessionC: SparkSession)
@@ -99,6 +101,9 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
         val lrModel: LinearRegressionModel = linearRegression.fit(train)
         this.profiler.finishTask(splitAndFitTaskId, System.currentTimeMillis())
 
+        val totalIterations: Int = lrModel.summary.totalIterations
+        writeTotalIterations(gisJoin, totalIterations)
+
         // Use the model on the testing set, and evaluate results
         val evaluateTaskName: String = "ClusterLRModels;Evaluate RMSE;gisJoin=%s;clusterId=%d".format(gisJoin, this.clusterId)
         val evaluateTaskId: Int = this.profiler.addTask(evaluateTaskName)
@@ -111,6 +116,20 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
 
     this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
     mongoCollection.unpersist()
+  }
+
+  /**
+   * Writes the total iterations until convergence of a model to file
+   */
+  def writeTotalIterations(gisJoin: String, iterations: Int): Unit = {
+    val bw = new BufferedWriter(
+      new FileWriter(
+        new File("train_iterations.csv"),
+        true
+      )
+    )
+    bw.write("%s,%d,false\n".format(gisJoin, iterations))
+    bw.close()
   }
 
   /**

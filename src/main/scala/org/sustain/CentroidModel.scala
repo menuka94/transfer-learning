@@ -1,13 +1,14 @@
 package org.sustain
 
 import com.mongodb.spark.MongoSpark
-import org.apache.spark.SparkConf
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
-import org.apache.spark.sql.{DataFrame, Dataset, Row, RuntimeConfig, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.col
 import com.mongodb.spark.config._
+
+import java.io.{BufferedWriter, File, FileWriter}
 
 class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, collectionC: String,
                     labelC: String, featuresC: Array[String], gisJoinC: String, clusterIdC: Int,
@@ -113,6 +114,20 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
 
     this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
     mongoCollection.unpersist()
+  }
+
+  /**
+   * Writes the total iterations until convergence of a model to file
+   */
+  def writeTotalIterations(gisJoin: String, iterations: Int): Unit = {
+    val bw = new BufferedWriter(
+      new FileWriter(
+        new File("train_iterations.csv"),
+        true
+      )
+    )
+    bw.write("%s,%d,true\n".format(gisJoin, iterations))
+    bw.close()
   }
 
   /**
