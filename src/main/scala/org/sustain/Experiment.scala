@@ -1,23 +1,10 @@
 package org.sustain
 
 import org.apache.spark.SparkConf
-import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
-import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel}
-import org.apache.spark.ml.linalg.Vectors
-import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.{DataFrame, Dataset, Row, RowFactory}
-import org.apache.spark.sql.functions.{avg, col, collect_list, min, row_number, struct}
-import org.apache.spark.ml.regression.LinearRegression
-import com.mongodb.spark.MongoSpark
-import org.apache.spark.ml.feature.VectorAssembler
-import org.apache.spark.ml.feature.VectorDisassembler
-import org.apache.spark.ml.linalg.Vector
-import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.sql.functions.{avg, col}
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 import scala.io.Source
-import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConverters._
 
 @SerialVersionUID(114L)
 class Experiment() extends Serializable {
@@ -90,14 +77,13 @@ class Experiment() extends Serializable {
       // Wait until models are done being trained
       clusterModels.foreach(cluster => cluster.join())
     } catch {
-      case e: java.lang.IllegalMonitorStateException => {
+      case e: java.lang.IllegalMonitorStateException =>
         println("\n\n>>>Caught IllegalMonitorStateException!")
         println(e.getMessage)
 
         // Safe cleanup
         sparkSession.close()
         return
-      }
 
     }
 
