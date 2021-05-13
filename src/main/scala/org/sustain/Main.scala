@@ -41,7 +41,7 @@ object Main {
     "ice_cover_binary")
   val CLUSTERING_FEATURES: Array[String] = Array("avg_pc_0", "avg_pc_1", "avg_pc_2", "avg_pc_3", "avg_pc_4", "avg_pc_5")
   val CLUSTERING_K: Int = 56 // sqrt(3192) = 56
-  val REGRESSION_FEATURES: Array[String] = Array("year_month_day_hour")
+  val REGRESSION_FEATURES: Array[String] = Array("pressure_pascal")
   val REGRESSION_LABEL: String = "temp_surface_level_kelvin"
   val PROFILE_OUTPUT: String = "unsharded.csv"
   val ITERATIONS_OUTPUT: String = "iterations.csv"

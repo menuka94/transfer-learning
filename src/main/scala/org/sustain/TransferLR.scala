@@ -44,7 +44,7 @@ class TransferLR {
       .setFitIntercept(true)
       .setTol(0.0001)
       .setMaxIter(100)
-      .setEpsilon(0.001)
+      .setEpsilon(1.2)
       .setStandardization(true)
 
     if (callerClass == "ClusterLRModels") {

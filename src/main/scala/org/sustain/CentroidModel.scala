@@ -45,7 +45,7 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
     )
 
     val mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig).select(
-      "gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin"
+      "gis_join", "pressure_pascal", "timestep", "temp_surface_level_kelvin"
     )
 
     val transferLR: TransferLR = new TransferLR()
