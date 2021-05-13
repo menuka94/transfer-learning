@@ -32,8 +32,8 @@ class TransferLR {
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
+    gisJoinCollection = gisJoinCollection.localCheckpoint(true)
     var Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
-    train = train.localCheckpoint(true)
     profiler.finishTask(filterAndSplitTaskId, System.currentTimeMillis())
 
     // Create a linear regression model object and fit it to the training set
