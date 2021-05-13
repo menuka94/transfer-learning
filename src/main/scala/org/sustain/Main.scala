@@ -57,7 +57,7 @@ object Main {
 
     experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
       MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, ITERATIONS_OUTPUT,
-      experiment.loadClusters("clusters.csv", 56))
+      experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
 
   }
 
