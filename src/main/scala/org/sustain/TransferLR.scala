@@ -41,6 +41,12 @@ class TransferLR {
     val fitTaskName: String = "%s;Fit Training Set;gisJoin=%s;clusterId=%d".format(callerClass, gisJoin, clusterId)
     val fitTaskId: Int = profiler.addTask(fitTaskName)
     var linearRegression: LinearRegression = new LinearRegression()
+      .setFitIntercept(true)
+      .setTol(0.0001)
+      .setMaxIter(100)
+      .setEpsilon(0.001)
+      .setStandardization(true)
+
     if (callerClass == "ClusterLRModels") {
       linearRegression = centroidEstimator.copy(new ParamMap())
     }
@@ -50,6 +56,7 @@ class TransferLR {
     val evaluateTaskName: String = "%s;Evaluate RMSE;gisJoin=%s;clusterId=%d".format(callerClass, gisJoin, clusterId)
     val evaluateTaskId: Int = profiler.addTask(evaluateTaskName)
     val totalIterations: Int = lrModel.summary.totalIterations
+    println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d\n", gisJoin, totalIterations)
     writeTotalIterations(gisJoin, totalIterations, iterationsFilename, callerClass == "CentroidModel")
 
     // Use the model on the testing set, and evaluate results
