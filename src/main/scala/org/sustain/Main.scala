@@ -43,7 +43,8 @@ object Main {
   val CLUSTERING_K: Int = 56 // sqrt(3192) = 56
   val REGRESSION_FEATURES: Array[String] = Array("year_month_day_hour")
   val REGRESSION_LABEL: String = "temp_surface_level_kelvin"
-  val PROFILE_OUTPUT: String = "transfer_learning_nonsharded.csv"
+  val PROFILE_OUTPUT: String = "unsharded.csv"
+  val ITERATIONS_OUTPUT: String = "iterations.csv"
 
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
@@ -55,7 +56,7 @@ object Main {
     //  MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
 
     experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT,
+      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, ITERATIONS_OUTPUT,
       experiment.loadClusters("clusters.csv", 56))
 
   }

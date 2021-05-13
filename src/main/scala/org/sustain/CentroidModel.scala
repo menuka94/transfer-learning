@@ -12,10 +12,10 @@ import java.io.{BufferedWriter, File, FileWriter}
 
 class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, collectionC: String,
                     labelC: String, featuresC: Array[String], gisJoinC: String, clusterIdC: Int,
-                    sparkSessionC: SparkSession, profilerC: Profiler)
+                    sparkSessionC: SparkSession, profilerC: Profiler, iterationsOutput: String)
                     extends Thread with Serializable with Ordered[CentroidModel] {
 
-  val linearRegression: LinearRegression = new LinearRegression()
+  var linearRegression: LinearRegression = new LinearRegression()
   val sparkMaster: String = sparkMasterC
   val mongoUri: String = mongoUriC
   val database: String = databaseC
@@ -26,6 +26,7 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
   val clusterId: Int = clusterIdC
   val sparkSession: SparkSession = sparkSessionC
   val profiler: Profiler = profilerC
+  val iterationsOutputFile: String = iterationsOutput
 
   /**
    * Launched by the thread.start()
@@ -43,95 +44,18 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
       ), Some(ReadConfig(sparkSession))
     )
 
-    val persistTaskName: String = ("CentroidModel;Persist Dataframe after select + drop null + filter + column " +
-      "rename;gisJoin=%s;clusterId=%d").format(this.gisJoin, this.clusterId)
-    val persistTaskId: Int = this.profiler.addTask(persistTaskName)
+    val mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig).select(
+      "gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin"
+    )
 
-    /* Read collection into a DataSet[Row], dropping null rows, filter by this GISJoin, and timestep 0, and rename
-       the label column to "label"
-      +--------+-------------------+--------+------------------+
-      |gis_join|year_month_day_hour|timestep|             label|
-      +--------+-------------------+--------+------------------+
-      |G3600770|         2010011000|       0|258.02488708496094|
-      |G3600770|         2010011000|       0|257.64988708496094|
-      |G3600770|         2010011000|       0|257.39988708496094|
-      |G3600770|         2010011000|       0|257.14988708496094|
-      |G3600770|         2010011000|       0|257.39988708496094|
-      |G3600770|         2010011000|       0|256.89988708496094|
-      |G3600770|         2010011000|       0|256.64988708496094|
-      |G3600770|         2010011000|       0|256.77488708496094|
-      |G3600770|         2010011000|       0|257.14988708496094|
-      |G3600770|         2010011000|       0|256.77488708496094|
-      +--------+-------------------+--------+------------------+
-     */
-    var mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig)
-    mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
-      .na.drop().filter(
-      col("gis_join") === this.gisJoin && col("timestep") === 0
-    ).withColumnRenamed(this.label, "label")
-
-    /* Assemble into features
-      +--------+-------------------+--------+------------------+------------+
-      |gis_join|year_month_day_hour|timestep|             label|    features|
-      +--------+-------------------+--------+------------------+------------+
-      |G4801730|         2010011000|       0|272.89988708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|272.89988708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|272.89988708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|272.52488708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|273.89988708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|272.77488708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|272.89988708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|274.14988708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|273.14988708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|274.14988708496094|[2.010011E9]|
-      |G4801730|         2010011000|       0|273.27488708496094|[2.010011E9]|
-      +--------+-------------------+--------+------------------+------------+
-     */
-    val assembler: VectorAssembler = new VectorAssembler()
-      .setInputCols(this.features)
-      .setOutputCol("features")
-    mongoCollection = assembler.transform(mongoCollection)
-    mongoCollection.persist()
-    this.profiler.finishTask(persistTaskId, System.currentTimeMillis())
-
-    // Split input into testing set and training set:
-    // 80% training, 20% testing, with random seed of 42
-    val splitAndFitTaskName: String = "CentroidModel;Split test/train + LR fit;gisJoin=%s;clusterId=%d".format(this.gisJoin, this.clusterId)
-    val splitAndFitTaskId: Int = this.profiler.addTask(splitAndFitTaskName)
-    val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
-
-    // Create a linear regression model object and fit it to the training set
-    val lrModel: LinearRegressionModel = this.linearRegression.fit(train)
-    this.profiler.finishTask(splitAndFitTaskId, System.currentTimeMillis())
-
-    val totalIterations: Int = lrModel.summary.totalIterations
-    writeTotalIterations(gisJoin, totalIterations)
-
-    // Use the model on the testing set, and evaluate results
-    val evaluateTaskName: String = "CentroidModel;Evaluate LR model RMSE;gisJoin=%s;clusterId=%d".format(this.gisJoin, this.clusterId)
-    val evaluateTaskId: Int = this.profiler.addTask(evaluateTaskName)
-    val lrPredictions: DataFrame = lrModel.transform(test)
-    val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
-    println("\n\n>>> Test set RMSE for " + this.gisJoin + ": " + evaluator.evaluate(lrPredictions))
-    this.profiler.finishTask(evaluateTaskId, System.currentTimeMillis())
+    val transferLR: TransferLR = new TransferLR()
+    this.linearRegression = transferLR.train(mongoCollection, this.label, this.features, this.iterationsOutputFile, this.gisJoin, this.clusterId,
+    "CentroidModel", null, this.profiler)
 
     this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
-    mongoCollection.unpersist()
   }
 
-  /**
-   * Writes the total iterations until convergence of a model to file
-   */
-  def writeTotalIterations(gisJoin: String, iterations: Int): Unit = {
-    val bw = new BufferedWriter(
-      new FileWriter(
-        new File("train_iterations.csv"),
-        true
-      )
-    )
-    bw.write("%s,%d,true\n".format(gisJoin, iterations))
-    bw.close()
-  }
+
 
   /**
    * Allows ordering of CentroidModel objects, sorted by ascending cluster id which the GISJoin belongs to.

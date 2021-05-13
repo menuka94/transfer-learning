@@ -11,7 +11,8 @@ class Experiment() extends Serializable {
 
   def transferLearning(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
                        database: String, collection: String, regressionFeatures: Array[String],
-                       regressionLabel: String, profileOutput: String, pcaClusters: Array[PCACluster]): Unit = {
+                       regressionLabel: String, profileOutput: String, iterationsOutput: String,
+                       pcaClusters: Array[PCACluster]): Unit = {
 
     val profiler: Profiler = new Profiler()
     val experimentTaskId: Int = profiler.addTask("Experiment")
@@ -40,7 +41,7 @@ class Experiment() extends Serializable {
       val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
       val mongoUri: String = "mongodb://%s:%s/".format(mongoHost, mongoPort)
       centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoUri, database, collection,
-        regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId, sparkSession, profiler)
+        regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId, sparkSession, profiler, iterationsOutput)
     }
 
     try {
@@ -67,7 +68,7 @@ class Experiment() extends Serializable {
 
       clusterModels(cluster.clusterId) = new ClusterLRModels(sparkMaster, mongoUri, database, collection, cluster.clusterId,
         cluster.clusterGisJoins.toArray, centroidModel.linearRegression, cluster.centerGisJoin, regressionFeatures,
-        regressionLabel, profiler, sparkSession)
+        regressionLabel, profiler, sparkSession, iterationsOutput)
     }
 
     try {

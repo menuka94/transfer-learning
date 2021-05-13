@@ -1,0 +1,55 @@
+import scala.collection.Map
+
+var memMap: Map[String, (Long, Long)] = sc.getExecutorMemoryStatus
+____________________________________________________________________________
+memMap: scala.collection.Map[String,(Long, Long)] = Map(129.82.208.148:34167 -> (12696158208,12696158208),
+129.82.208.130:43075 -> (12696158208,12696158208),
+129.82.208.126:33477 -> (12696158208,12696158208),
+129.82.208.125:41189 -> (12696158208,12696158208),
+129.82.208.127:35255 -> (12696158208,12696158208),
+129.82.208.147:34721 -> (12696158208,12696158208),
+129.82.208.150:35789 -> (12696158208,12696158208),
+129.82.208.116:39387 -> (12696158208,12696158208),
+129.82.208.123:37463 -> (12696158208,12696158208),
+lattice-100.cs.colostate.edu:38605 -> (455501414,455501414),
+129.82.208.151:37937 -> (12696158208,12696158208),
+129.82.208.143:46623 -> (12696158208,12696158208),
+129.82.208.146:40679 -> (12696158208,12696158208),
+129.82.208.133:39683 -> (12696158208,12696...
+____________________________________________________________________________
+
+
+import org.apache.spark.SparkStatusTracker
+import org.apache.spark.SparkExecutorInfo
+
+var statusTracker: SparkStatusTracker = sc.statusTracker
+var sparkExecutorInfos: Array[SparkExecutorInfo] = statusTracker.getExecutorInfos
+sparkExecutorInfos.foreach(
+    info => {
+        println("host: %s, port: %d\n\tcacheSize: %d, numRunningTasks: %d,".format(info.host, info.port, info.cacheSize, info.numRunningTasks))
+        println("\ttotalOffHeapStorageMemory: %d, totalOnHeapStorageMemory: %d,".format(info.totalOffHeapStorageMemory, info.totalOnHeapStorageMemory))
+        println("\tusedOffHeapStorageMemory: %d, usedOnHeapStorageMemory: %d,".format(info.usedOffHeapStorageMemory, info.usedOnHeapStorageMemory))
+    }
+)
+____________________________________________________________________________
+host: lattice-100.cs.colostate.edu, port: 38605
+	cacheSize: 0, numRunningTasks: 0,
+	totalOffHeapStorageMemory: 455501414, totalOnHeapStorageMemory: 0,
+	usedOffHeapStorageMemory: 0, usedOnHeapStorageMemory: 0,
+host: 129.82.208.147, port: 34721
+	cacheSize: 0, numRunningTasks: 0,
+	totalOffHeapStorageMemory: 12696158208, totalOnHeapStorageMemory: 0,
+	usedOffHeapStorageMemory: 0, usedOnHeapStorageMemory: 0,
+host: 129.82.208.128, port: 35727
+	cacheSize: 0, numRunningTasks: 0,
+	totalOffHeapStorageMemory: 12696158208, totalOnHeapStorageMemory: 0,
+	usedOffHeapStorageMemory: 0, usedOnHeapStorageMemory: 0,
+host: 129.82.208.146, port: 40679
+	cacheSize: 0, numRunningTasks: 0,
+	totalOffHeapStorageMemory: 12696158208, totalOnHeapStorageMemory: 0,
+	usedOffHeapStorageMemory: 0, usedOnHeapStorageMemory: 0,
+host: 129.82.208.153, port: 33131
+	cacheSize: 0, numRunningTasks: 0,
+	totalOffHeapStorageMemory: 12696158208, totalOnHeapStorageMemory: 0,
+	usedOffHeapStorageMemory: 0, usedOnHeapStorageMemory: 0,
+____________________________________________________________________________

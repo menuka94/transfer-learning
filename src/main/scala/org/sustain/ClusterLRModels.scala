@@ -2,19 +2,13 @@ package org.sustain
 
 import com.mongodb.spark.MongoSpark
 import com.mongodb.spark.config.ReadConfig
-import org.apache.spark.SparkConf
-import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.feature.VectorAssembler
-import org.apache.spark.ml.param.ParamMap
-import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
+import org.apache.spark.ml.regression.LinearRegression
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
-
-import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
 class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String, collectionC: String, clusterIdC: Int,
                       gisJoinsC: Array[String], centroidEstimatorC: LinearRegression, centroidGisJoinC: String,
-                      featuresC: Array[String], labelC: String, profilerC: Profiler, sparkSessionC: SparkSession)
+                      featuresC: Array[String], labelC: String, profilerC: Profiler, sparkSessionC: SparkSession, iterationsOutput: String)
                       extends Thread with Serializable {
 
   val sparkMaster: String = sparkMasterC
@@ -29,6 +23,7 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
   val label: String = labelC
   val profiler: Profiler = profilerC
   val sparkSession: SparkSession = sparkSessionC
+  val iterationsOutputFile: String = iterationsOutput
 
   /**
    * Launched by the thread.start()
@@ -66,70 +61,24 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
       |G3600770|         2010011000|       0|256.77488708496094|
       +--------+-------------------+--------+------------------+
      */
-    var mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig)
-    mongoCollection = mongoCollection.select("gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin")
-      .na.drop().filter(
+    var mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig).select(
+      "gis_join", "year_month_day_hour", "timestep", "temp_surface_level_kelvin"
+    ).na.drop().filter(
       col("gis_join").isInCollection(this.gisJoins) && col("timestep") === 0
-    ).withColumnRenamed(this.label, "label")
-    mongoCollection.persist() // Persist collection for reuse
+    ).withColumnRenamed(this.label, "label").persist()
     this.profiler.finishTask(persistTaskId, System.currentTimeMillis())
 
     // Iterate over all gisJoins in this collection, build models for each from persisted collection
+    val transferLR: TransferLR = new TransferLR()
     this.gisJoins.foreach(
       gisJoin => {
-
-        // Filter the data down to just entries for a single GISJoin
-        val splitAndFitTaskName: String = "ClusterLRModels;Filter + split test/train + LR fit;gisJoin=%s;clusterId=%d".format(gisJoin, this.clusterId)
-        val splitAndFitTaskId: Int = this.profiler.addTask(splitAndFitTaskName)
-
-        var gisJoinCollection: Dataset[Row] = mongoCollection.filter(col("gis_join") === gisJoin)
-          .withColumnRenamed(this.label, "label")
-
-        val assembler: VectorAssembler = new VectorAssembler()
-          .setInputCols(this.features)
-          .setOutputCol("features")
-        gisJoinCollection = assembler.transform(gisJoinCollection)
-
-        // Split input into testing set and training set:
-        // 80% training, 20% testing, with random seed of 42
-        val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
-
-        // Copy the hyper-parameters from the already-trained centroid model for this cluster
-        val linearRegression: LinearRegression = centroidEstimator.copy(new ParamMap())
-
-        // Create a linear regression model object and fit it to the training set
-        val lrModel: LinearRegressionModel = linearRegression.fit(train)
-        this.profiler.finishTask(splitAndFitTaskId, System.currentTimeMillis())
-
-        val totalIterations: Int = lrModel.summary.totalIterations
-        writeTotalIterations(gisJoin, totalIterations)
-
-        // Use the model on the testing set, and evaluate results
-        val evaluateTaskName: String = "ClusterLRModels;Evaluate RMSE;gisJoin=%s;clusterId=%d".format(gisJoin, this.clusterId)
-        val evaluateTaskId: Int = this.profiler.addTask(evaluateTaskName)
-        val lrPredictions: DataFrame = lrModel.transform(test)
-        val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
-        println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(lrPredictions))
-        this.profiler.finishTask(evaluateTaskId, System.currentTimeMillis())
+        transferLR.train(mongoCollection, this.label, this.features, this.iterationsOutputFile, gisJoin, this.clusterId,
+        "ClusterLRModels", this.centroidEstimator, this.profiler)
       }
     )
 
     this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
     mongoCollection.unpersist()
-  }
-
-  /**
-   * Writes the total iterations until convergence of a model to file
-   */
-  def writeTotalIterations(gisJoin: String, iterations: Int): Unit = {
-    val bw = new BufferedWriter(
-      new FileWriter(
-        new File("train_iterations.csv"),
-        true
-      )
-    )
-    bw.write("%s,%d,false\n".format(gisJoin, iterations))
-    bw.close()
   }
 
   /**
