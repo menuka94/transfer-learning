@@ -103,9 +103,10 @@ class TransferLR {
       )
       .withColumnRenamed(regressionLabel, "label")
 
-    gisJoinCollection.write.option("header", true)
-      .option("delimiter", ",")
-      .csv("/s/parsons/b/others/sustain/gis_join_collection.csv")
+    // Write dataframe to csv for plotting raw data
+//    gisJoinCollection.write.option("header", true)
+//      .option("delimiter", ",")
+//      .csv("/s/parsons/b/others/sustain/gis_join_collection.csv")
 
     // Assemble features column
     val assembler: VectorAssembler = new VectorAssembler()
@@ -156,8 +157,8 @@ class TransferLR {
       lrPredictions.show()
 
       println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d".format(gisJoin, totalIterations))
-      println(">>> TEST SET RMSE FOR GISJOIN %s: %f".format(gisJoin, rmse))
-      println(">>> LR MODEL COEFFICIENTS: %s".format(lrModel.coefficients.toArray))
+      println(">>> TEST SET RMSE FOR TOL %.4f: %.4f".format(tolerance, rmse))
+      println(">>> LR MODEL COEFFICIENTS: %s".format(lrModel.coefficients))
       println(">>> LR MODEL INTERCEPT: %.4f\n".format(lrModel.intercept))
 
       bw.write("%s,%d,%.4f,%.4f\n".format(gisJoin,totalIterations,tolerance,rmse))
