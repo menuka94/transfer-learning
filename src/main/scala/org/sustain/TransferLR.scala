@@ -135,7 +135,7 @@ class TransferLR {
     gisJoinCollection.show()
 
 
-    val tolerances: Array[Double] = Array(1.0, 0.1, 0.01, 0.001, 0.0001)
+    val tolerances: Array[Double] = Array(1.0, 0.1, 0.01, 0.001, 0.0001, 1E-9)
     val bw = new BufferedWriter(new FileWriter(new File("lr_tests.csv")))
     bw.write("gis_join,total_iterations,tolerance,rmse\n")
 
@@ -145,10 +145,10 @@ class TransferLR {
         .setFitIntercept(true)
         .setLoss("squaredError")
         .setSolver("normal")
-        .setRegParam(0.0)
-        .setTol(1E-9)
+        .setRegParam(0.3)
+        .setTol(tolerance)
         .setMaxIter(1000)
-        .setEpsilon(1.01)
+        .setEpsilon(1.35)
         .setStandardization(true)
 
       val lrModel: LinearRegressionModel = linearRegression.fit(train)
@@ -162,6 +162,8 @@ class TransferLR {
       lrPredictions.show()
 
       println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d".format(gisJoin, totalIterations))
+      println(">>> OBJECTIVE HISTORY:\n")
+      lrModel.summary.objectiveHistory.foreach{ println }
       println(">>> TEST SET RMSE FOR TOL %.4f: %.4f".format(tolerance, rmse))
       println(">>> LR MODEL COEFFICIENTS: %s".format(lrModel.coefficients))
       println(">>> LR MODEL INTERCEPT: %.4f\n".format(lrModel.intercept))
