@@ -102,6 +102,7 @@ class TransferLR {
         col("gis_join") === gisJoin && col("timestep") === 0
       )
       .withColumnRenamed(regressionLabel, "label")
+    gisJoinCollection.write.csv("gis_join_collection.csv")
 
     // Assemble features column
     val assembler: VectorAssembler = new VectorAssembler()
@@ -126,6 +127,7 @@ class TransferLR {
 
     println("\n\nNUMBER OF ROWS: %d\n".format(gisJoinCollection.count()))
     gisJoinCollection.show()
+
 
     val tolerances: Array[Double] = Array(1.0, 0.1, 0.01, 0.001, 0.0001)
     val bw = new BufferedWriter(new FileWriter(new File("lr_tests.csv")))
