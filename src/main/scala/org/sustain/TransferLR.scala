@@ -150,9 +150,9 @@ class TransferLR {
         .setLoss("huber")
         .setSolver("auto")
         .setRegParam(0.0)
-        .setTol(1E-3)
+        .setTol(tolerance)
         .setMaxIter(100)
-        .setEpsilon(1.35)
+        .setEpsilon(1.5)
         .setElasticNetParam(0.0)
         .setStandardization(true)
 
