@@ -83,7 +83,7 @@ class TransferLR {
       .set("spark.executor.memory", "10G")
       .set("spark.mongodb.input.uri", "mongodb://lattice-100:27018/") // default mongos router
       .set("spark.mongodb.input.database", "sustaindb") // sustaindb
-      .set("spark.mongodb.input.collection", "noaa_nam") // noaa_nam
+      .set("spark.mongodb.input.collection", "noaa_nam_sharded") // noaa_nam
 
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
@@ -143,12 +143,13 @@ class TransferLR {
 
       val linearRegression: LinearRegression = new LinearRegression()
         .setFitIntercept(true)
-        .setLoss("squaredError")
+        .setLoss("huber")
         .setSolver("normal")
         .setRegParam(0.1)
         .setTol(tolerance)
         .setMaxIter(1000)
-        .setEpsilon(1.00000001)
+        .setEpsilon(1.5)
+        .setElasticNetParam(0.0)
         .setStandardization(true)
 
       val lrModel: LinearRegressionModel = linearRegression.fit(train)
@@ -164,7 +165,7 @@ class TransferLR {
       println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d".format(gisJoin, totalIterations))
       println(">>> OBJECTIVE HISTORY:\n")
       lrModel.summary.objectiveHistory.foreach{ println }
-      println(">>> TEST SET RMSE FOR TOL %.4f: %.4f".format(tolerance, rmse))
+      println(">>> TEST SET RMSE FOR TOL %f: %.4f".format(tolerance, rmse))
       println(">>> LR MODEL COEFFICIENTS: %s".format(lrModel.coefficients))
       println(">>> LR MODEL INTERCEPT: %.4f\n".format(lrModel.intercept))
 
