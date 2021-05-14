@@ -88,6 +88,8 @@ class TransferLR {
       .set("spark.mongodb.input.uri", "mongodb://lattice-100:27018/") // default mongos router
       .set("spark.mongodb.input.database", "sustaindb") // sustaindb
       .set("spark.mongodb.input.collection", "noaa_nam_sharded") // noaa_nam
+      .set("spark.mongodb.input.partitioner", "MongoShardedPartitioner")
+      .set("spark.mongodb.input.partitionerOptions.shardKey", "gis_join")
 
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
@@ -139,42 +141,54 @@ class TransferLR {
     gisJoinCollection.show()
 
 
-    val tolerances: Array[Double] = Array(1.0, 0.1, 0.01, 0.001, 0.0001, 1E-9)
+    val tolerances: Array[Double] = Array(0.001)
+    val regParams: Array[Double] = Array(0.0, 0.3, 0.5)
+    val epsilons: Array[Double] = Array(1.35)
+
     val bw = new BufferedWriter(new FileWriter(new File("lr_tests.csv")))
-    bw.write("gis_join,total_iterations,tolerance,rmse\n")
+    bw.write("gis_join,total_iterations,tolerance,reg_param,epsilon,loss,test_rmse\n")
 
     for (tolerance <- tolerances) {
 
-      val linearRegression: LinearRegression = new LinearRegression()
-        .setFitIntercept(true)
-        .setLoss("huber")
-        .setSolver("auto")
-        .setRegParam(0.0)
-        .setTol(tolerance)
-        .setMaxIter(100)
-        .setEpsilon(1.5)
-        .setElasticNetParam(0.0)
-        .setStandardization(true)
+      for (regParam <- regParams) {
 
-      val lrModel: LinearRegressionModel = linearRegression.fit(train)
+        for (epsilon <- epsilons) {
 
-      val totalIterations: Int = lrModel.summary.totalIterations
+          val solver: String = "huber"
+          val linearRegression: LinearRegression = new LinearRegression()
+            .setFitIntercept(true)
+            .setLoss("huber")
+            .setSolver("auto")
+            .setRegParam(regParam)
+            .setTol(tolerance)
+            .setMaxIter(100)
+            .setEpsilon(epsilon)
+            .setElasticNetParam(0.0)
+            .setStandardization(true)
 
-      val lrPredictions: Dataset[Row] = lrModel.transform(test)
-      val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
-      val rmse: Double = evaluator.evaluate(lrPredictions)
+          val lrModel: LinearRegressionModel = linearRegression.fit(train)
 
-      lrPredictions.show()
+          val totalIterations: Int = lrModel.summary.totalIterations
 
-      println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d".format(gisJoin, totalIterations))
-      println(">>> OBJECTIVE HISTORY:\n")
-      lrModel.summary.objectiveHistory.foreach{ println }
-      println(">>> TEST SET RMSE FOR TOL %f: %.4f".format(tolerance, rmse))
-      println(">>> LR MODEL COEFFICIENTS: %s".format(lrModel.coefficients))
-      println(">>> LR MODEL INTERCEPT: %.4f\n".format(lrModel.intercept))
+          val lrPredictions: Dataset[Row] = lrModel.transform(test)
+          val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
+          val rmse: Double = evaluator.evaluate(lrPredictions)
 
-      bw.write("%s,%d,%.4f,%.4f\n".format(gisJoin,totalIterations,tolerance,rmse))
-    }
+          lrPredictions.show()
+
+          println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d".format(gisJoin, totalIterations))
+          println(">>> OBJECTIVE HISTORY:\n")
+          lrModel.summary.objectiveHistory.foreach{ println }
+          println(">>> TEST SET RMSE FOR TOL %f: %.4f".format(tolerance, rmse))
+          println(">>> LR MODEL COEFFICIENTS: %s".format(lrModel.coefficients))
+          println(">>> LR MODEL INTERCEPT: %.4f\n".format(lrModel.intercept))
+
+          bw.write("%s,%d,%.4f,%.2f,%.2f,%s,%.4f\n".format(gisJoin,totalIterations,tolerance,regParam,epsilon,solver,rmse))
+        } // End epsilons
+
+      } // End regParams
+
+    } // End tolerances
     bw.close()
     sparkSession.close()
   }
