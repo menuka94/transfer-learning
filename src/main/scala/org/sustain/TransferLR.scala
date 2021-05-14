@@ -111,7 +111,7 @@ class TransferLR {
     gisJoinCollection = gisJoinCollection.localCheckpoint(true)
     println("\n\nNUMBER OF ROWS: %d\n".format(gisJoinCollection.count()))
 
-    val tolerances: Array[Double] = Array(1.0, 0.1, 0.01, 0.001, 0.0001)
+    val tolerances: Array[Double] = Array(0.1, 1.0, 0.01, 0.001, 0.0001)
     val bw = new BufferedWriter(new FileWriter(new File("lr_tests.csv")))
     bw.write("gis_join,total_iterations,tolerance,rmse\n")
 
