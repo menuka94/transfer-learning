@@ -22,7 +22,7 @@ class Experiment() extends Serializable {
       .setMaster(sparkMaster)
       .setAppName(appName)
       .set("spark.executor.cores", "8")
-      .set("spark.executor.memory", "10G")
+      .set("spark.executor.memory", "16G")
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort)) // default mongos router
       .set("spark.mongodb.input.database", database) // sustaindb
       .set("spark.mongodb.input.collection", collection) // noaa_nam
