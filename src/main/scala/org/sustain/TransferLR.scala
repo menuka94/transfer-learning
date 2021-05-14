@@ -102,7 +102,10 @@ class TransferLR {
         col("gis_join") === gisJoin && col("timestep") === 0
       )
       .withColumnRenamed(regressionLabel, "label")
-    gisJoinCollection.write.csv("gis_join_collection.csv")
+
+    gisJoinCollection.write.option("header", true)
+      .option("delimiter", ",")
+      .csv("/s/lattice-100/a/tmp/gis_join_collection.csv")
 
     // Assemble features column
     val assembler: VectorAssembler = new VectorAssembler()
