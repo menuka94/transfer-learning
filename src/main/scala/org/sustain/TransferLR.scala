@@ -148,7 +148,7 @@ class TransferLR {
         .setRegParam(0.0)
         .setTol(1E-9)
         .setMaxIter(1000)
-        .setEpsilon(1.35)
+        .setEpsilon(1.01)
         .setStandardization(true)
 
       val lrModel: LinearRegressionModel = linearRegression.fit(train)
