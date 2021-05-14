@@ -45,9 +45,13 @@ class TransferLR {
     val fitTaskId: Int = profiler.addTask(fitTaskName)
     var linearRegression: LinearRegression = new LinearRegression()
       .setFitIntercept(true)
-      .setTol(0.0001)
+      .setLoss("huber")
+      .setSolver("l-bfgs")
+      .setRegParam(0.1)
+      .setTol(1E-6)
       .setMaxIter(100)
-      .setEpsilon(1.2)
+      .setEpsilon(1.5)
+      .setElasticNetParam(0.0)
       .setStandardization(true)
 
     if (callerClass == "ClusterLRModels") {
