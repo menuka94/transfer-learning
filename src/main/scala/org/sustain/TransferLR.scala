@@ -103,6 +103,9 @@ class TransferLR {
       )
       .withColumnRenamed(regressionLabel, "label")
 
+    gisJoinCollection = gisJoinCollection.localCheckpoint(true)
+    println("\n\nNUMBER OF ROWS: %d".format(gisJoinCollection.count()))
+
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(regressionFeatures)
       .setOutputCol("features")
