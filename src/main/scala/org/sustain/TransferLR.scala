@@ -90,10 +90,10 @@ class TransferLR {
       .getOrCreate()
 
     val mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession).select(
-      "gis_join", "pressure_pascal", "timestep", "temp_surface_level_kelvin"
+      "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
     )
 
-    val regressionFeatures: Array[String] = Array("pressure_pascal")
+    val regressionFeatures: Array[String] = Array("relative_humidity_percent")
     val regressionLabel: String = "temp_surface_level_kelvin"
     val gisJoin: String = "G3100310"
 
@@ -123,7 +123,7 @@ class TransferLR {
 
       val linearRegression: LinearRegression = new LinearRegression()
         .setFitIntercept(false)
-        .setTol(0.0001)
+        .setTol(tolerance)
         .setMaxIter(100)
         .setEpsilon(1.2)
         .setStandardization(true)
