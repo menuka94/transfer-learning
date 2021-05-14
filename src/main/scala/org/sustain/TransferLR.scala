@@ -4,7 +4,7 @@ import com.mongodb.spark.MongoSpark
 import com.mongodb.spark.config.ReadConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel, VectorAssembler}
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.functions.col
@@ -107,6 +107,18 @@ class TransferLR {
       .setInputCols(regressionFeatures)
       .setOutputCol("features")
     gisJoinCollection = assembler.transform(gisJoinCollection)
+
+    var minMaxScaler: MinMaxScaler = new MinMaxScaler()
+      .setInputCol("features")
+      .setOutputCol("normalized_features")
+    var minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(gisJoinCollection)
+    gisJoinCollection = minMaxScalerModel.transform(gisJoinCollection).drop("features").withColumnRenamed("normalized_features", "features")
+
+    minMaxScaler = new MinMaxScaler()
+      .setInputCol("label")
+      .setOutputCol("normalized_label")
+    minMaxScalerModel = minMaxScaler.fit(gisJoinCollection)
+    gisJoinCollection = minMaxScalerModel.transform(gisJoinCollection).drop("label").withColumnRenamed("normalized_label", "label")
 
     gisJoinCollection = gisJoinCollection.persist()
     println("\n\nNUMBER OF ROWS: %d\n".format(gisJoinCollection.count()))
