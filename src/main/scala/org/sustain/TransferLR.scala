@@ -100,7 +100,7 @@ class TransferLR {
       "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
     )
 
-    val regressionFeatures: Array[String] = Array("relative_humidity_percent")
+    val regressionFeatures: Array[String] = Array("relative_humidity_percent", "surface_pressure_surface_level_pascal", "year_month_day_hour")
     val regressionLabel: String = "temp_surface_level_kelvin"
     val gisJoin: String = "G3100310"
 
@@ -158,7 +158,7 @@ class TransferLR {
           val solver: String = "huber"
           val linearRegression: LinearRegression = new LinearRegression()
             .setFitIntercept(true)
-            .setLoss("huber")
+            .setLoss("squaredError")
             .setSolver("auto")
             .setRegParam(regParam)
             .setTol(tolerance)
