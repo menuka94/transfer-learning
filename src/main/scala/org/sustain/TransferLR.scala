@@ -132,6 +132,8 @@ class TransferLR {
       val lrPredictions: Dataset[Row] = lrModel.transform(test)
       val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
       val rmse: Double = evaluator.evaluate(lrPredictions)
+
+      lrPredictions.show()
       println("\n\n>>> TEST SET RMSE FOR GISJOIN %s: %f\n".format(gisJoin, rmse))
 
       bw.write("%s,%d,%.4f,%.4f\n".format(gisJoin,totalIterations,tolerance,rmse))
