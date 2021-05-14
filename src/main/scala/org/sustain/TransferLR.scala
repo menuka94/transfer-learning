@@ -97,7 +97,7 @@ class TransferLR {
 
 
     val mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession).select(
-      "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
+      "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin", "surface_pressure_surface_level_pascal", "year_month_day_hour"
     )
 
     val regressionFeatures: Array[String] = Array("relative_humidity_percent", "surface_pressure_surface_level_pascal", "year_month_day_hour")
