@@ -55,12 +55,12 @@ object Main {
     //experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
     //  MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
 
-    //experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-    //  MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, ITERATIONS_OUTPUT,
-    //  experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
+    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, ITERATIONS_OUTPUT,
+      experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
 
-    val transferLearningTest: TransferLR = new TransferLR()
-    transferLearningTest.testTrain()
+    //val transferLearningTest: TransferLR = new TransferLR()
+    //transferLearningTest.testTrain()
   }
 
   /**
