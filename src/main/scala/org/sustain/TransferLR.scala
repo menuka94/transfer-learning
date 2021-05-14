@@ -108,15 +108,18 @@ class TransferLR {
       .setOutputCol("features")
     gisJoinCollection = assembler.transform(gisJoinCollection)
 
-    gisJoinCollection = gisJoinCollection.localCheckpoint(true)
+    gisJoinCollection = gisJoinCollection.persist()
     println("\n\nNUMBER OF ROWS: %d\n".format(gisJoinCollection.count()))
+    gisJoinCollection.show()
 
-    val tolerances: Array[Double] = Array(0.1, 1.0, 0.01, 0.001, 0.0001)
+    val tolerances: Array[Double] = Array(1.0, 0.1, 0.01, 0.001, 0.0001)
     val bw = new BufferedWriter(new FileWriter(new File("lr_tests.csv")))
     bw.write("gis_join,total_iterations,tolerance,rmse\n")
 
     for (tolerance <- tolerances) {
       val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
+      train.show()
+      test.show()
 
       val linearRegression: LinearRegression = new LinearRegression()
         .setFitIntercept(false)
