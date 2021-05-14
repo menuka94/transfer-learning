@@ -139,9 +139,9 @@ class TransferLR {
     for (tolerance <- tolerances) {
 
       val linearRegression: LinearRegression = new LinearRegression()
-        .setFitIntercept(false)
+        .setFitIntercept(true)
         .setTol(tolerance)
-        .setMaxIter(100)
+        .setMaxIter(1000)
         .setEpsilon(1.35)
         .setStandardization(true)
 
@@ -156,7 +156,9 @@ class TransferLR {
       lrPredictions.show()
 
       println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d".format(gisJoin, totalIterations))
-      println(">>> TEST SET RMSE FOR GISJOIN %s: %f\n".format(gisJoin, rmse))
+      println(">>> TEST SET RMSE FOR GISJOIN %s: %f".format(gisJoin, rmse))
+      println(">>> LR MODEL COEFFICIENTS: %s".format(lrModel.coefficients.toArray))
+      println(">>> LR MODEL INTERCEPT: %.4f\n".format(lrModel.intercept))
 
       bw.write("%s,%d,%.4f,%.4f\n".format(gisJoin,totalIterations,tolerance,rmse))
     }
