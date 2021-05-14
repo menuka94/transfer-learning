@@ -35,7 +35,7 @@ class TransferLR {
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
-    gisJoinCollection = gisJoinCollection.localCheckpoint(true)
+    //gisJoinCollection = gisJoinCollection.cache() // Cache Dataframe for just this GISJoin
     var Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
     profiler.finishTask(filterAndSplitTaskId, System.currentTimeMillis())
 
@@ -47,8 +47,8 @@ class TransferLR {
       .setFitIntercept(true)
       .setLoss("huber")
       .setSolver("auto")
-      .setRegParam(0.0)
-      .setTol(1E-3)
+      .setRegParam(0.3)
+      .setTol(0.001)
       .setMaxIter(100)
       .setEpsilon(1.35)
       .setElasticNetParam(0.0)

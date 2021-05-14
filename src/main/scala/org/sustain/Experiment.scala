@@ -133,7 +133,7 @@ class Experiment() extends Serializable {
       .setMaster(sparkMaster)
       .setAppName(appName)
       .set("spark.executor.cores", "8")
-      .set("spark.executor.memory", "20G")
+      .set("spark.executor.memory", "16G")
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
       .set("spark.mongodb.input.database", database)
       .set("spark.mongodb.input.collection", collection)
