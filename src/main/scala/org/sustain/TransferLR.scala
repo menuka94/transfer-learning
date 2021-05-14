@@ -103,24 +103,27 @@ class TransferLR {
       )
       .withColumnRenamed(regressionLabel, "label")
 
+    // Assemble features column
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(regressionFeatures)
       .setOutputCol("features")
     gisJoinCollection = assembler.transform(gisJoinCollection)
 
-    var minMaxScaler: MinMaxScaler = new MinMaxScaler()
+    // Normalize features column
+    val minMaxScaler: MinMaxScaler = new MinMaxScaler()
       .setInputCol("features")
       .setOutputCol("normalized_features")
-    var minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(gisJoinCollection)
+    val minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(gisJoinCollection)
     gisJoinCollection = minMaxScalerModel.transform(gisJoinCollection).drop("features").withColumnRenamed("normalized_features", "features")
 
-    minMaxScaler = new MinMaxScaler()
-      .setInputCol("label")
-      .setOutputCol("normalized_label")
-    minMaxScalerModel = minMaxScaler.fit(gisJoinCollection)
-    gisJoinCollection = minMaxScalerModel.transform(gisJoinCollection).drop("label").withColumnRenamed("normalized_label", "label")
-
+    // Persist the dataset
     gisJoinCollection = gisJoinCollection.persist()
+
+    // Split into train/test sets
+    val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
+    train.show()
+    test.show()
+
     println("\n\nNUMBER OF ROWS: %d\n".format(gisJoinCollection.count()))
     gisJoinCollection.show()
 
@@ -129,27 +132,26 @@ class TransferLR {
     bw.write("gis_join,total_iterations,tolerance,rmse\n")
 
     for (tolerance <- tolerances) {
-      val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
-      train.show()
-      test.show()
 
       val linearRegression: LinearRegression = new LinearRegression()
         .setFitIntercept(false)
         .setTol(tolerance)
         .setMaxIter(100)
-        .setEpsilon(1.2)
+        .setEpsilon(1.35)
         .setStandardization(true)
 
       val lrModel: LinearRegressionModel = linearRegression.fit(train)
 
       val totalIterations: Int = lrModel.summary.totalIterations
-      println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d\n".format(gisJoin, totalIterations))
+
       val lrPredictions: Dataset[Row] = lrModel.transform(test)
       val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
       val rmse: Double = evaluator.evaluate(lrPredictions)
 
       lrPredictions.show()
-      println("\n\n>>> TEST SET RMSE FOR GISJOIN %s: %f\n".format(gisJoin, rmse))
+
+      println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d".format(gisJoin, totalIterations))
+      println(">>> TEST SET RMSE FOR GISJOIN %s: %f\n".format(gisJoin, rmse))
 
       bw.write("%s,%d,%.4f,%.4f\n".format(gisJoin,totalIterations,tolerance,rmse))
     }
