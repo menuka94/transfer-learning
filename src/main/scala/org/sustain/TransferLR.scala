@@ -120,16 +120,16 @@ class TransferLR {
 
       val linearRegression: LinearRegression = new LinearRegression()
         .setFitIntercept(false)
-        .setTol(tolerance)
+        .setTol(0.0001)
         .setMaxIter(100)
-        .setEpsilon(1.35)
+        .setEpsilon(1.2)
         .setStandardization(true)
 
       val lrModel: LinearRegressionModel = linearRegression.fit(train)
 
       val totalIterations: Int = lrModel.summary.totalIterations
       println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d\n".format(gisJoin, totalIterations))
-      val lrPredictions: DataFrame = lrModel.transform(test)
+      val lrPredictions: Dataset[Row] = lrModel.transform(test)
       val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
       val rmse: Double = evaluator.evaluate(lrPredictions)
       println("\n\n>>> TEST SET RMSE FOR GISJOIN %s: %f\n".format(gisJoin, rmse))
