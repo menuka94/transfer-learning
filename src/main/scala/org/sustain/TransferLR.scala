@@ -114,12 +114,14 @@ class TransferLR {
       .setOutputCol("features")
     gisJoinCollection = assembler.transform(gisJoinCollection)
 
+    /*
     // Normalize features column
     val minMaxScaler: MinMaxScaler = new MinMaxScaler()
       .setInputCol("features")
       .setOutputCol("normalized_features")
     val minMaxScalerModel: MinMaxScalerModel = minMaxScaler.fit(gisJoinCollection)
     gisJoinCollection = minMaxScalerModel.transform(gisJoinCollection).drop("features").withColumnRenamed("normalized_features", "features")
+    */
 
     // Persist the dataset
     gisJoinCollection = gisJoinCollection.persist()
