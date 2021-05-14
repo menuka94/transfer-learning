@@ -95,6 +95,7 @@ class TransferLR {
       .config(conf)
       .getOrCreate()
 
+
     val mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession).select(
       "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
     )
@@ -142,8 +143,8 @@ class TransferLR {
 
 
     val tolerances: Array[Double] = Array(0.001)
-    val regParams: Array[Double] = Array(0.0, 0.3, 0.5)
-    val epsilons: Array[Double] = Array(1.35)
+    val regParams: Array[Double] = Array(0.3)
+    val epsilons: Array[Double] = Array(1.0, 1.35, 1.5, 1.8)
 
     val bw = new BufferedWriter(new FileWriter(new File("lr_tests.csv")))
     bw.write("gis_join,total_iterations,tolerance,reg_param,epsilon,loss,test_rmse\n")
