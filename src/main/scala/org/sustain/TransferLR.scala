@@ -103,28 +103,40 @@ class TransferLR {
       )
       .withColumnRenamed(regressionLabel, "label")
 
-    gisJoinCollection = gisJoinCollection.localCheckpoint(true)
-    println("\n\nNUMBER OF ROWS: %d".format(gisJoinCollection.count()))
-
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(regressionFeatures)
       .setOutputCol("features")
     gisJoinCollection = assembler.transform(gisJoinCollection)
-    var Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
 
-    var linearRegression: LinearRegression = new LinearRegression()
-      .setFitIntercept(true)
-      .setTol(0.0001)
-      .setMaxIter(100)
-      .setEpsilon(1.2)
-      .setStandardization(true)
-    val lrModel: LinearRegressionModel = linearRegression.fit(train)
-    val totalIterations: Int = lrModel.summary.totalIterations
-    println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d\n".format(gisJoin, totalIterations))
-    val lrPredictions: DataFrame = lrModel.transform(test)
-    val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
-    println("\n\n>>> TEST SET RMSE FOR GISJOIN %s: %f".format(gisJoin, evaluator.evaluate(lrPredictions)))
+    gisJoinCollection = gisJoinCollection.localCheckpoint(true)
+    println("\n\nNUMBER OF ROWS: %d\n".format(gisJoinCollection.count()))
 
+    val tolerances: Array[Double] = Array(1.0, 0.1, 0.01, 0.001, 0.0001)
+    val bw = new BufferedWriter(new FileWriter(new File("lr_tests.csv")))
+    bw.write("gis_join,total_iterations,tolerance,rmse\n")
+
+    for (tolerance <- tolerances) {
+      val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
+
+      val linearRegression: LinearRegression = new LinearRegression()
+        .setFitIntercept(false)
+        .setTol(tolerance)
+        .setMaxIter(100)
+        .setEpsilon(1.35)
+        .setStandardization(true)
+
+      val lrModel: LinearRegressionModel = linearRegression.fit(train)
+
+      val totalIterations: Int = lrModel.summary.totalIterations
+      println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d\n".format(gisJoin, totalIterations))
+      val lrPredictions: DataFrame = lrModel.transform(test)
+      val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
+      val rmse: Double = evaluator.evaluate(lrPredictions)
+      println("\n\n>>> TEST SET RMSE FOR GISJOIN %s: %f\n".format(gisJoin, rmse))
+
+      bw.write("%s,%d,%.4f,%.4f\n".format(gisJoin,totalIterations,tolerance,rmse))
+    }
+    bw.close()
     sparkSession.close()
   }
 
