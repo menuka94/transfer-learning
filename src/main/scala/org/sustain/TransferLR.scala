@@ -105,7 +105,7 @@ class TransferLR {
 
     gisJoinCollection.write.option("header", true)
       .option("delimiter", ",")
-      .csv("/s/lattice-100/a/tmp/gis_join_collection.csv")
+      .csv("/s/parsons/b/others/sustain/gis_join_collection.csv")
 
     // Assemble features column
     val assembler: VectorAssembler = new VectorAssembler()
