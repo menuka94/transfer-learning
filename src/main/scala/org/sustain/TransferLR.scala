@@ -212,7 +212,6 @@ class TransferLR {
       .setOutputCol("features")
     mongoCollection = assembler.transform(mongoCollection)
 
-
     // Split Dataset into train/test sets
     val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
 
@@ -251,9 +250,15 @@ class TransferLR {
     val bestLRRegParam: Double = bestLRModel.getRegParam
     val bestLRTol: Double = bestLRModel.getTol
     val bestLREpsilon: Double = bestLRModel.getEpsilon
+    val bestLRIterations: Int = bestLRModel.summary.totalIterations
 
-    println("\n\n>>> Best Params: tol=%.3f, regParam=%.2f, epsilon=%.2f\n".format(
+    println("\n\n>>> Best Params: tol=%.5f, regParam=%.2f, epsilon=%.2f\n".format(
       bestLRTol, bestLRRegParam, bestLREpsilon))
+
+    println("\n\n>>> Summary History: totalIterations=%d, objectiveHistory:".format(bestLRIterations))
+    bestLRModel.summary.objectiveHistory.foreach{println}
+
+    val bestEstimator: LinearRegression = bestLRModel.parent.asInstanceOf[LinearRegression]
 
     // Fit a Linear Regression Estimator on all the data for the Centroid GISJoin,
     // we will transfer this trained estimator to other estimators for the cluster.
