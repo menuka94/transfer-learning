@@ -59,7 +59,6 @@ class Experiment() extends Serializable {
 
     println("\n\n>>> Initial center models done training\n")
 
-    /*
     println("\n\n>>> Beginning to train cluster models\n")
 
     // Sort trained models by their predicted cluster ID
@@ -94,8 +93,6 @@ class Experiment() extends Serializable {
         return
 
     }
-
-     */
 
     profiler.finishTask(experimentTaskId)
     profiler.writeToFile(profileOutput)
