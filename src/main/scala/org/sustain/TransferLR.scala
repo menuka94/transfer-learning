@@ -228,7 +228,7 @@ class TransferLR {
     // this grid will have 3 x 3 x 3 = 27 parameter settings for CrossValidator to choose from.
     val paramGrid: Array[ParamMap] = new ParamGridBuilder()
       .addGrid(linearRegression.tol, Array(0.001, 0.01, 0.1))
-      .addGrid(linearRegression.regParam, Array(0.3, 0.1, 0.5))
+      .addGrid(linearRegression.regParam, Array(0.0, 0.3, 0.1, 0.5))
       .addGrid(linearRegression.epsilon, Array(1.35, 1.1, 1.5))
       .build()
 
