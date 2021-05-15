@@ -227,9 +227,9 @@ class TransferLR {
     // With 3 values for tolerance, 3 values for regularization param, and 3 values for epsilon,
     // this grid will have 3 x 3 x 3 = 27 parameter settings for CrossValidator to choose from.
     val paramGrid: Array[ParamMap] = new ParamGridBuilder()
-      .addGrid(linearRegression.tol, Array(0.1, 0.01, 0.001))
-      .addGrid(linearRegression.regParam, Array(0.1, 0.3, 0.5))
-      .addGrid(linearRegression.epsilon, Array(1.1, 1.35, 1.5))
+      .addGrid(linearRegression.tol, Array(0.001, 0.01, 0.1))
+      .addGrid(linearRegression.regParam, Array(0.3, 0.1, 0.5))
+      .addGrid(linearRegression.epsilon, Array(1.35, 1.1, 1.5))
       .build()
 
     // We now treat the Pipeline as an Estimator, wrapping it in a CrossValidator instance.
@@ -241,13 +241,21 @@ class TransferLR {
       .setEstimator(pipeline)
       .setEvaluator(new RegressionEvaluator)
       .setEstimatorParamMaps(paramGrid)
-      .setNumFolds(2)     // Use 3+ in practice
+      .setNumFolds(3)     // Use 3+ in practice
       .setParallelism(2)  // Evaluate up to 2 parameter settings in parallel
 
     // Run cross-validation, and choose the best set of parameters.
     val crossValidatorModel: CrossValidatorModel = crossValidator.fit(train)
 
-    println("\n\n>>> Params: %s".format(crossValidatorModel.estimatorParamMaps.toString()))
+
+    val bestParamMap: ParamMap = crossValidatorModel.getEstimatorParamMaps
+      .zip(crossValidatorModel.avgMetrics)
+      .maxBy(_._2)
+      ._1
+
+    println("\n\n>>> Params: %s".format(bestParamMap))
+
+
 
 
     // Make predictions on the testing Dataset, evaluate performance
