@@ -232,6 +232,10 @@ class TransferLR {
       .addGrid(linearRegression.epsilon, Array(1.35, 1.1, 1.5))
       .build()
 
+    // Establish a Regression Evaluator for RMSE
+    val evaluator: RegressionEvaluator = new RegressionEvaluator()
+      .setMetricName("rmse")
+
     // We now treat the Pipeline as an Estimator, wrapping it in a CrossValidator instance.
     // This will allow us to jointly choose parameters for all Pipeline stages.
     // A CrossValidator requires an Estimator, a set of Estimator ParamMaps, and an Evaluator.
@@ -239,7 +243,7 @@ class TransferLR {
     // is areaUnderROC.
     val crossValidator: CrossValidator = new CrossValidator()
       .setEstimator(linearRegression)
-      .setEvaluator(new RegressionEvaluator)
+      .setEvaluator(evaluator)
       .setEstimatorParamMaps(paramGrid)
       .setNumFolds(3)     // Use 3+ in practice
       .setParallelism(2)  // Evaluate up to 2 parameter settings in parallel
@@ -281,7 +285,6 @@ class TransferLR {
 
     // Make predictions on the testing Dataset, evaluate performance
     val predictions: Dataset[Row] = linearRegressionModel.transform(test)
-    val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
     println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(predictions))
 
 
