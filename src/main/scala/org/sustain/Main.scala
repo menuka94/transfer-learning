@@ -60,7 +60,7 @@ object Main {
 //      experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
 
     val transferLearningTest: TransferLR = new TransferLR()
-    transferLearningTest.testTrain()
+    transferLearningTest.testTrainTwo()
   }
 
   /**

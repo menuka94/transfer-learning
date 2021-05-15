@@ -7,6 +7,9 @@ import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.col
 import com.mongodb.spark.config._
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
 
 import java.io.{BufferedWriter, File, FileWriter}
 
@@ -33,7 +36,7 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
    */
   override def run(): Unit = {
     val trainTaskName: String = "CentroidModel;run(mongoUri=%s);gisJoin=%s;clusterId=%d".format(this.mongoUri, this.gisJoin, this.clusterId)
-    val trainTaskId: Int = this.profiler.addTask(trainTaskName)
+    //val trainTaskId: Int = this.profiler.addTask(trainTaskName)
     println("\n\n" + trainTaskName)
 
     val readConfig: ReadConfig = ReadConfig(
@@ -41,18 +44,66 @@ class CentroidModel(sparkMasterC: String, mongoUriC: String, databaseC: String, 
         "uri" -> this.mongoUri,
         "database" -> this.database,
         "collection" -> this.collection
-      ), Some(ReadConfig(sparkSession))
+      ), Some(ReadConfig(this.sparkSession))
     )
 
-    val mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig).select(
-      "gis_join", "pressure_pascal", "timestep", "temp_surface_level_kelvin"
-    )
+    // Load in Dataset; reduce it down to rows for this GISJoin at timestep 0; persist it for multiple operations
+    val mongoCollection: Dataset[Row] = MongoSpark.load(this.sparkSession, readConfig)
+      .select("gis_join", "pressure_pascal", "timestep", "temp_surface_level_kelvin")
+      .withColumnRenamed(this.label, "label")
+      .filter(col("gis_join") === this.gisJoin && col("timestep") === 0)
+      .persist()
 
-    val transferLR: TransferLR = new TransferLR()
-    this.linearRegression = transferLR.train(mongoCollection, this.label, this.features, this.iterationsOutputFile, this.gisJoin, this.clusterId,
-    "CentroidModel", null, this.profiler)
+    // Split Dataset into train/test sets
+    val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
 
-    this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
+    // Create a ML Pipeline using VectorAssembler and Linear Regression
+    val assembler: VectorAssembler = new VectorAssembler()
+      .setInputCols(this.features)
+      .setOutputCol("features")
+    val linearRegression: LinearRegression = new LinearRegression()
+      .setFitIntercept(true)
+      .setMaxIter(10)
+      .setLoss("squaredError")
+      .setSolver("l-bfgs")
+      .setStandardization(true)
+    val pipeline = new Pipeline()
+      .setStages(Array(assembler, linearRegression))
+
+    // We use a ParamGridBuilder to construct a grid of parameters to search over.
+    // With 3 values for tolerance, 3 values for regularization param, and 3 values for epsilon,
+    // this grid will have 3 x 3 x 3 = 27 parameter settings for CrossValidator to choose from.
+    val paramGrid: Array[ParamMap] = new ParamGridBuilder()
+      .addGrid(linearRegression.tol, Array(0.1, 0.01, 0.001))
+      .addGrid(linearRegression.regParam, Array(0.1, 0.3, 0.5))
+      .addGrid(linearRegression.epsilon, Array(1.1, 1.35, 1.5))
+      .build()
+
+    // We now treat the Pipeline as an Estimator, wrapping it in a CrossValidator instance.
+    // This will allow us to jointly choose parameters for all Pipeline stages.
+    // A CrossValidator requires an Estimator, a set of Estimator ParamMaps, and an Evaluator.
+    // Note that the evaluator here is a BinaryClassificationEvaluator and its default metric
+    // is areaUnderROC.
+    val crossValidator: CrossValidator = new CrossValidator()
+      .setEstimator(pipeline)
+      .setEvaluator(new RegressionEvaluator)
+      .setEstimatorParamMaps(paramGrid)
+      .setNumFolds(2)     // Use 3+ in practice
+      .setParallelism(2)  // Evaluate up to 2 parameter settings in parallel
+
+    // Run cross-validation, and choose the best set of parameters.
+    val crossValidatorModel: CrossValidatorModel = crossValidator.fit(train)
+    println("\n\n>>> Params: %s\n".format(crossValidatorModel.params))
+
+    // Make predictions on the testing Dataset, evaluate performance
+    val predictions: Dataset[Row] = crossValidatorModel.transform(test)
+    val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
+    println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(predictions))
+
+
+    // Unpersist Dataset to free up space
+    mongoCollection.unpersist()
+    //this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
   }
 
 
