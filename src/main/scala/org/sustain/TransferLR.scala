@@ -244,10 +244,11 @@ class TransferLR {
       .setNumFolds(3)     // Use 3+ in practice
       .setParallelism(2)  // Evaluate up to 2 parameter settings in parallel
 
+
     // Run cross-validation, and choose the best set of parameters.
     val crossValidatorModel: CrossValidatorModel = crossValidator.fit(train)
     val bestPipeline: PipelineModel = crossValidatorModel.bestModel.asInstanceOf[PipelineModel]
-    val bestLRModel: LinearRegressionModel = bestPipeline.stages(2).asInstanceOf[LinearRegressionModel]
+    val bestLRModel: LinearRegressionModel = bestPipeline.stages(1).asInstanceOf[LinearRegressionModel]
     println("\n\n>>> Best Params: tol=%.3f, regParam=%.2f, epsilon=%.2f\n".format(bestLRModel.getTol, bestLRModel.getRegParam, bestLRModel.getEpsilon))
 
 
