@@ -41,10 +41,11 @@ object Main {
     "ice_cover_binary")
   val CLUSTERING_FEATURES: Array[String] = Array("avg_pc_0", "avg_pc_1", "avg_pc_2", "avg_pc_3", "avg_pc_4", "avg_pc_5")
   val CLUSTERING_K: Int = 56 // sqrt(3192) = 56
-  val REGRESSION_FEATURES: Array[String] = Array("pressure_pascal")
+  val REGRESSION_FEATURES: Array[String] = Array("relative_humidity_percent")
   val REGRESSION_LABEL: String = "temp_surface_level_kelvin"
-  val PROFILE_OUTPUT: String = "unsharded.csv"
-  val ITERATIONS_OUTPUT: String = "iterations.csv"
+  val PROFILE_OUTPUT: String = "experiment_profile.csv"
+  val CENTROID_STATS_CSV: String = "centroid_stats.csv"
+  val CLUSTER_MODEL_STATS_CSV: String = "cluster_model_stats.csv"
 
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
@@ -55,12 +56,12 @@ object Main {
     //experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
     //  MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
 
-//    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-//      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, ITERATIONS_OUTPUT,
-//      experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
+    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, CENTROID_STATS_CSV,
+      CLUSTER_MODEL_STATS_CSV, experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
 
-    val transferLearningTest: TransferLR = new TransferLR()
-    transferLearningTest.testTrainTwo()
+    //val transferLearningTest: TransferLR = new TransferLR()
+    //transferLearningTest.testTrainTwo()
   }
 
   /**

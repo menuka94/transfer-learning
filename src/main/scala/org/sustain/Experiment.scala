@@ -4,6 +4,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.functions.{avg, col}
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
+import java.io.{BufferedWriter, File, FileWriter}
 import scala.io.Source
 
 @SerialVersionUID(114L)
@@ -11,8 +12,8 @@ class Experiment() extends Serializable {
 
   def transferLearning(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
                        database: String, collection: String, regressionFeatures: Array[String],
-                       regressionLabel: String, profileOutput: String, iterationsOutput: String,
-                       pcaClusters: Array[PCACluster]): Unit = {
+                       regressionLabel: String, profileOutput: String, centroidStatsCSV: String,
+                       clusterModelStatsCSV: String, pcaClusters: Array[PCACluster]): Unit = {
 
     val profiler: Profiler = new Profiler()
     val experimentTaskId: Int = profiler.addTask("Experiment")
@@ -41,8 +42,10 @@ class Experiment() extends Serializable {
       val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
       val mongoUri: String = "mongodb://%s:%s/".format(mongoHost, mongoPort)
       centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoUri, database, collection,
-        regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId, sparkSession, profiler, iterationsOutput)
+        regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId, sparkSession, profiler, centroidStatsCSV)
     }
+
+    writeCentroidStatsCSVHeader(centroidStatsCSV)
 
     try {
       // Kick off training of LR models for center GISJoins
@@ -56,8 +59,12 @@ class Experiment() extends Serializable {
 
     println("\n\n>>> Initial center models done training\n")
 
+    /*
+    println("\n\n>>> Beginning to train cluster models\n")
+
     // Sort trained models by their predicted cluster ID
     scala.util.Sorting.quickSort(centroidModels)
+    writeClusterModelsStatsCSVHeader(clusterModelStatsCSV)
 
     // Create ClusterLRModels models for cluster GISJoins
     val clusterModels: Array[ClusterLRModels] = new Array[ClusterLRModels](pcaClusters.length)
@@ -68,7 +75,7 @@ class Experiment() extends Serializable {
 
       clusterModels(cluster.clusterId) = new ClusterLRModels(sparkMaster, mongoUri, database, collection, cluster.clusterId,
         cluster.clusterGisJoins.toArray, centroidModel.linearRegression, cluster.centerGisJoin, regressionFeatures,
-        regressionLabel, profiler, sparkSession, iterationsOutput)
+        regressionLabel, profiler, sparkSession, clusterModelStatsCSV)
     }
 
     try {
@@ -88,9 +95,31 @@ class Experiment() extends Serializable {
 
     }
 
+     */
+
     profiler.finishTask(experimentTaskId)
     profiler.writeToFile(profileOutput)
     profiler.close()
+  }
+
+  def writeCentroidStatsCSVHeader(filename: String): Unit = {
+    val bw = new BufferedWriter(
+      new FileWriter(
+        new File(filename),
+      )
+    )
+    bw.write("gis_join,cluster_id,number_records,time_ms,rmse,iterations,best_reg_param,best_tolerance,best_epsilon\n")
+    bw.close()
+  }
+
+  def writeClusterModelsStatsCSVHeader(filename: String): Unit = {
+    val bw = new BufferedWriter(
+      new FileWriter(
+        new File(filename),
+      )
+    )
+    bw.write("gis_join,cluster_id,time_ms,iterations,rmse\n")
+    bw.close()
   }
 
   def loadClusters(filename: String, numClusters: Int): Array[PCACluster] = {

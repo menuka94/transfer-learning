@@ -1,11 +1,9 @@
 package org.sustain
 
 import com.mongodb.spark.MongoSpark
-import com.mongodb.spark.config.ReadConfig
 import org.apache.spark.SparkConf
-import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel, VectorAssembler}
+import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
@@ -16,65 +14,40 @@ import java.io.{BufferedWriter, File, FileWriter}
 
 class TransferLR {
 
-  def train(mongoCollection: Dataset[Row], label: String, features: Array[String], iterationsFilename: String,
-            gisJoin: String, clusterId: Int, callerClass: String, centroidEstimator: LinearRegression,
-            profiler: Profiler): LinearRegression = {
+  def train(mongoCollection: Dataset[Row], centroidEstimator: LinearRegression, clusterStatsCSVFilename: String,
+            gisJoin: String, clusterId: Int, profiler: Profiler): Unit = {
+
+    // >>> Begin Task for single cluster model's train() function
+    val trainTaskName: String = "ClusterLRModels;train();gisJoin=%s;clusterId=%d"
+      .format(gisJoin, clusterId)
+    val trainTaskId: Int = profiler.addTask(trainTaskName)
 
     // Filter the data down to just entries for a single GISJoin
-    val filterAndSplitTaskName: String = "%s;Filter by GISJoin + Vector Transform + Split + Checkpoint;gisJoin=%s;clusterId=%d".format(callerClass, gisJoin, clusterId)
-    val filterAndSplitTaskId: Int = profiler.addTask(filterAndSplitTaskName)
-
-    var gisJoinCollection: Dataset[Row] = mongoCollection.na.drop()
-      .filter(
-        col("gis_join") === gisJoin && col("timestep") === 0
-      )
-      .withColumnRenamed(label, "label")
-
-    val assembler: VectorAssembler = new VectorAssembler()
-      .setInputCols(features)
-      .setOutputCol("features")
-    gisJoinCollection = assembler.transform(gisJoinCollection)
+    val gisJoinCollection: Dataset[Row] = mongoCollection.filter(
+      col("gis_join") === gisJoin && col("timestep") === 0)
 
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
     //gisJoinCollection = gisJoinCollection.cache() // Cache Dataframe for just this GISJoin
-    var Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
-    profiler.finishTask(filterAndSplitTaskId, System.currentTimeMillis())
+    val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
 
-    // Create a linear regression model object and fit it to the training set
-    // Copy the hyper-parameters from the already-trained centroid model for this cluster, if applicable
-    val fitTaskName: String = "%s;Fit Training Set;gisJoin=%s;clusterId=%d".format(callerClass, gisJoin, clusterId)
-    val fitTaskId: Int = profiler.addTask(fitTaskName)
-    var linearRegression: LinearRegression = new LinearRegression()
-      .setFitIntercept(true)
-      .setLoss("huber")
-      .setSolver("auto")
-      .setRegParam(0.3)
-      .setTol(0.001)
-      .setMaxIter(100)
-      .setEpsilon(1.35)
-      .setElasticNetParam(0.0)
-      .setStandardization(true)
-
-    if (callerClass == "ClusterLRModels") {
-      linearRegression = centroidEstimator.copy(new ParamMap())
-    }
+    // Copy the hyper-parameters from the already-trained centroid model for this cluster to a new LR Estimator
+    val linearRegression: LinearRegression = centroidEstimator.copy(new ParamMap())
+    val begin: Long = System.currentTimeMillis()
     val lrModel: LinearRegressionModel = linearRegression.fit(train)
-    profiler.finishTask(fitTaskId, System.currentTimeMillis())
-
-    val evaluateTaskName: String = "%s;Evaluate RMSE;gisJoin=%s;clusterId=%d".format(callerClass, gisJoin, clusterId)
-    val evaluateTaskId: Int = profiler.addTask(evaluateTaskName)
-    val totalIterations: Int = lrModel.summary.totalIterations
-    println("\n\n>>> TOTAL ITERATIONS FOR GISJOIN %s: %d\n", gisJoin, totalIterations)
-    writeTotalIterations(gisJoin, totalIterations, iterationsFilename, callerClass == "CentroidModel")
+    val end: Long = System.currentTimeMillis()
+    val iterations: Int = lrModel.summary.totalIterations
 
     // Use the model on the testing set, and evaluate results
-    val lrPredictions: DataFrame = lrModel.transform(test)
+    val predictions: DataFrame = lrModel.transform(test)
     val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
-    println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(lrPredictions))
-    profiler.finishTask(evaluateTaskId, System.currentTimeMillis())
+    val rmse: Double = evaluator.evaluate(predictions)
+    println("\n\n>>> Test set RMSE for %s: %f\n".format(gisJoin, rmse))
 
-    linearRegression
+    writeClusterModelStats(clusterStatsCSVFilename, gisJoin, clusterId, end-begin, rmse, iterations)
+
+    // <<< End Task for single cluster model's train() function
+    profiler.finishTask(trainTaskId, System.currentTimeMillis())
   }
 
   /**
@@ -219,7 +192,7 @@ class TransferLR {
     val linearRegression: LinearRegression = new LinearRegression()
       .setFitIntercept(true)
       .setMaxIter(10)
-      .setLoss("huber")
+      .setLoss("squaredError")
       .setSolver("l-bfgs")
       .setStandardization(true)
 
@@ -294,16 +267,17 @@ class TransferLR {
   }
 
   /**
-   * Writes the total iterations until convergence of a model to file
+   * Writes the modeling stats for a single model to a CSV file
    */
-  def writeTotalIterations(gisJoin: String, iterations: Int, filename: String, isCentroid: Boolean): Unit = {
+  def writeClusterModelStats(filename: String, gisJoin: String, clusterId: Int, time: Long, rmse: Double,
+                             iterations: Int): Unit = {
     val bw = new BufferedWriter(
       new FileWriter(
         new File(filename),
         true
       )
     )
-    bw.write("%s,%d,%s\n".format(gisJoin, iterations, isCentroid.toString))
+    bw.write("%s,%d,%d,%d,%f\n".format(gisJoin, clusterId, time, iterations, rmse))
     bw.close()
   }
 
