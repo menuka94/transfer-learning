@@ -251,7 +251,7 @@ class TransferLR {
     val bestLRModel: LinearRegressionModel = bestPipeline.stages(1).asInstanceOf[LinearRegressionModel]
     println("\n\n>>> Best Params: tol=%.3f, regParam=%.2f, epsilon=%.2f\n".format(bestLRModel.getTol, bestLRModel.getRegParam, bestLRModel.getEpsilon))
 
-
+    val estimator: LinearRegression = crossValidator.estimator.asInstanceOf[LinearRegression]
 
 
     // Make predictions on the testing Dataset, evaluate performance
