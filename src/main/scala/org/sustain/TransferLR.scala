@@ -219,7 +219,7 @@ class TransferLR {
     val linearRegression: LinearRegression = new LinearRegression()
       .setFitIntercept(true)
       .setMaxIter(10)
-      .setLoss("squaredError")
+      .setLoss("huber")
       .setSolver("l-bfgs")
       .setStandardization(true)
 
