@@ -247,8 +247,8 @@ class TransferLR {
     // Run cross-validation, and choose the best set of parameters.
     val crossValidatorModel: CrossValidatorModel = crossValidator.fit(train)
 
-    println("\n\n>>> Params:")
-    crossValidatorModel.bestModel.params.foreach{println}
+    println("\n\n>>> Params: %s".format(crossValidatorModel.estimatorParamMaps.toString()))
+
 
     // Make predictions on the testing Dataset, evaluate performance
     val predictions: Dataset[Row] = crossValidatorModel.transform(test)
