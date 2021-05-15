@@ -3,7 +3,7 @@ package org.sustain
 import com.mongodb.spark.MongoSpark
 import com.mongodb.spark.config.ReadConfig
 import org.apache.spark.SparkConf
-import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.{MinMaxScaler, MinMaxScalerModel, VectorAssembler}
 import org.apache.spark.ml.param.ParamMap
@@ -246,14 +246,9 @@ class TransferLR {
 
     // Run cross-validation, and choose the best set of parameters.
     val crossValidatorModel: CrossValidatorModel = crossValidator.fit(train)
-
-
-    val bestParamMap: ParamMap = crossValidatorModel.getEstimatorParamMaps
-      .zip(crossValidatorModel.avgMetrics)
-      .maxBy(_._2)
-      ._1
-
-    println("\n\n>>> Params: %s".format(bestParamMap))
+    val bestPipeline: PipelineModel = crossValidatorModel.bestModel.asInstanceOf[PipelineModel]
+    val bestLRModel: LinearRegressionModel = bestPipeline.stages(2).asInstanceOf[LinearRegressionModel]
+    println("\n\n>>> Best Params: tol=%.3f, regParam=%.2f, epsilon=%.2f\n".format(bestLRModel.getTol, bestLRModel.getRegParam, bestLRModel.getEpsilon))
 
 
 
