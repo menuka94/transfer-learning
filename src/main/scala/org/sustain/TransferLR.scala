@@ -255,8 +255,9 @@ class TransferLR {
     println("\n\n>>> Best Params: tol=%.3f, regParam=%.2f, epsilon=%.2f\n".format(
       bestLRTol, bestLRRegParam, bestLREpsilon))
 
-    println("\n\n>>> LEFTOVER PARAMS:")
-    linearRegression.params.foreach{println}
+    println("\n\n>>> LEFTOVER PARAMS: tol=%.3f, regParam=%.2f, epsilon=%.2f".format(
+      linearRegression.getTol, linearRegression.getRegParam, linearRegression.getEpsilon))
+
 
     // Make predictions on the testing Dataset, evaluate performance
     val predictions: Dataset[Row] = crossValidatorModel.transform(test)
