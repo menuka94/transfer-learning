@@ -1,6 +1,7 @@
 package org.sustain
 
 import com.mongodb.spark.MongoSpark
+import com.mongodb.spark.config.ReadConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.VectorAssembler
@@ -125,10 +126,22 @@ class Experiment() extends Serializable {
       .set("spark.mongodb.input.collection", collection) // noaa_nam
       .set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
 
+
     // Create the SparkSession and ReadConfig
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
       .getOrCreate()
+
+    val readConfig: ReadConfig = ReadConfig(
+      Map(
+        "uri" -> "mongodb://lattice-100:27018",
+        "database" -> "sustaindb",
+        "collection" -> "noaa_nam_sharded",
+        "mongodb.keep_alive_ms" -> "100000",
+        "partitioner" -> "MongoShardedPartitioner",
+        "partitionerOptions.shardkey" -> "gis_join"
+      ), Some(ReadConfig(sparkSession))
+    )
 
     import sparkSession.implicits._ // For the $()-referenced columns
 
@@ -136,7 +149,7 @@ class Experiment() extends Serializable {
     val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count"
     val persistTaskId: Int = profiler.addTask(persistTaskName)
 
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession).select(
+    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession, readConfig).select(
       "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
     ).na.drop().filter(col("timestep") === 0
     ).withColumnRenamed(regressionLabel, "label")
