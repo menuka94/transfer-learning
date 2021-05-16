@@ -46,6 +46,7 @@ object Main {
   val PROFILE_OUTPUT: String = "experiment_profile.csv"
   val CENTROID_STATS_CSV: String = "centroid_stats.csv"
   val CLUSTER_MODEL_STATS_CSV: String = "cluster_model_stats.csv"
+  val SEQUENTIAL_STATS_CSV: String = "sequential_stats.csv"
 
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
@@ -56,9 +57,13 @@ object Main {
     //experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
     //  MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
 
-    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, CENTROID_STATS_CSV,
-      CLUSTER_MODEL_STATS_CSV, experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
+//    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+//      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, CENTROID_STATS_CSV,
+//      CLUSTER_MODEL_STATS_CSV, experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
+
+
+    experiment.sequentialTraining(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB, MONGO_COLLECTION,
+      REGRESSION_FEATURES, REGRESSION_LABEL, SEQUENTIAL_STATS_CSV, PROFILE_OUTPUT, experiment.loadGisJoins("experiment_data/job_profiles/clusters.csv"))
 
     //val transferLearningTest: TransferLR = new TransferLR()
     //transferLearningTest.testTrainTwo()

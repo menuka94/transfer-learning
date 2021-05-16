@@ -1,10 +1,15 @@
 package org.sustain
 
+import com.mongodb.spark.MongoSpark
 import org.apache.spark.SparkConf
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.functions.{avg, col}
-import org.apache.spark.sql.{Dataset, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
 import java.io.{BufferedWriter, File, FileWriter}
+import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
 @SerialVersionUID(114L)
@@ -97,6 +102,119 @@ class Experiment() extends Serializable {
     profiler.finishTask(experimentTaskId)
     profiler.writeToFile(profileOutput)
     profiler.close()
+  }
+
+  /**
+   * Builds all ~3000 models sequentially without transfer learning, taking profiling stats for each model built.
+   */
+  def sequentialTraining(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
+                         database: String, collection: String, regressionFeatures: Array[String],
+                         regressionLabel: String, sequentialStatsCSV: String, profileOutput: String, gisJoins: Array[String]): Unit = {
+
+    writeSequentialModelHeader(sequentialStatsCSV)
+    val profiler: Profiler = new Profiler()
+    val experimentTaskId: Int = profiler.addTask("Experiment")
+
+    val conf: SparkConf = new SparkConf()
+      .setMaster(sparkMaster)
+      .setAppName(appName)
+      .set("spark.executor.cores", "8")
+      .set("spark.executor.memory", "16G")
+      .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort)) // default mongos router
+      .set("spark.mongodb.input.database", database) // sustaindb
+      .set("spark.mongodb.input.collection", collection) // noaa_nam
+    //.set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
+
+    // Create the SparkSession and ReadConfig
+    val sparkSession: SparkSession = SparkSession.builder()
+      .config(conf)
+      .getOrCreate()
+
+    import sparkSession.implicits._ // For the $()-referenced columns
+
+    // >>> Begin Task to persist the entire collection
+    val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count"
+    val persistTaskId: Int = profiler.addTask(persistTaskName)
+
+    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession).select(
+      "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
+    ).na.drop().filter(col("timestep") === 0
+    ).withColumnRenamed(regressionLabel, "label")
+
+    val assembler: VectorAssembler = new VectorAssembler()
+      .setInputCols(regressionFeatures)
+      .setOutputCol("features")
+    mongoCollection = assembler.transform(mongoCollection).persist()
+    val numRecords: Long = mongoCollection.count()
+
+    // <<< End Task for Dataframe Operations
+    profiler.finishTask(persistTaskId, System.currentTimeMillis())
+
+    // Train all models
+    gisJoins.foreach(
+      gisJoin => {
+
+        val gisJoinCollection: Dataset[Row] = mongoCollection.filter(
+          col("gis_join") === gisJoin
+        )
+
+        // Split input into testing set and training set:
+        // 80% training, 20% testing, with random seed of 42
+        val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
+
+        // Create Linear Regression Estimator
+        val linearRegression: LinearRegression = new LinearRegression()
+          .setFitIntercept(true)
+          .setMaxIter(10)
+          .setLoss("squaredError")
+          .setSolver("l-bfgs")
+          .setStandardization(true)
+
+        // >>> Begin Task to fit training set
+        val fitTaskName: String = "Fit Training Set"
+        val fitTaskId: Int = profiler.addTask(fitTaskName)
+
+        // Train LR model
+        val begin: Long = System.currentTimeMillis()
+        val lrModel: LinearRegressionModel = linearRegression.fit(train)
+        val end: Long = System.currentTimeMillis()
+        val iterations: Int = lrModel.summary.totalIterations
+
+        // <<< End Task to fit training set
+        profiler.finishTask(fitTaskId, System.currentTimeMillis())
+
+        // Establish a Regression Evaluator for RMSE
+        val evaluator: RegressionEvaluator = new RegressionEvaluator()
+          .setMetricName("rmse")
+        val predictions: DataFrame = lrModel.transform(test)
+        val rmse: Double = evaluator.evaluate(predictions)
+
+        writeSequentialModelStats(sequentialStatsCSV, gisJoin, end-begin, rmse, iterations)
+      }
+    )
+
+
+    // <<< End Task for Experiment
+    profiler.finishTask(experimentTaskId)
+    profiler.writeToFile(profileOutput)
+    profiler.close()
+  }
+
+  def loadGisJoins(filename: String): Array[String] = {
+    val gisJoins: ArrayBuffer[String] = new ArrayBuffer[String]()
+
+    val bufferedSource = Source.fromFile(filename)
+    var lineNumber: Int = 0
+    for (line <- bufferedSource.getLines) {
+      if (lineNumber > 0) {
+        val cols = line.split(",").map(_.trim)
+        val gisJoin: String = cols(1)
+        gisJoins += gisJoin
+      }
+      lineNumber += 1
+    }
+    bufferedSource.close
+    gisJoins.toArray
   }
 
   def writeCentroidStatsCSVHeader(filename: String): Unit = {
@@ -222,6 +340,33 @@ class Experiment() extends Serializable {
 
     val kMeansClustering: KMeansClustering = new KMeansClustering()
     kMeansClustering.runClustering(sparkConnector, pcaDF, clusteringFeatures, clusteringK)
+  }
+
+  /**
+   * Writes the modeling header to a CSV file
+   */
+  def writeSequentialModelHeader(filename: String): Unit = {
+    val bw = new BufferedWriter(
+      new FileWriter(
+        new File(filename)
+      )
+    )
+    bw.write("gis_join,time_ms,iterations,rmse")
+    bw.close()
+  }
+
+  /**
+   * Writes the modeling stats for a single model to a CSV file
+   */
+  def writeSequentialModelStats(filename: String, gisJoin: String, time: Long, rmse: Double, iterations: Int): Unit = {
+    val bw = new BufferedWriter(
+      new FileWriter(
+        new File(filename),
+        true
+      )
+    )
+    bw.write("%s,%d,%d,%f\n".format(gisJoin, time, iterations, rmse))
+    bw.close()
   }
 
 }
