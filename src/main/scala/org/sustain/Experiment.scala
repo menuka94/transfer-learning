@@ -124,8 +124,6 @@ class Experiment() extends Serializable {
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort)) // default mongos router
       .set("spark.mongodb.input.database", database) // sustaindb
       .set("spark.mongodb.input.collection", collection) // noaa_nam
-      .set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
-
 
     // Create the SparkSession and ReadConfig
     val sparkSession: SparkSession = SparkSession.builder()
@@ -145,35 +143,32 @@ class Experiment() extends Serializable {
 
     import sparkSession.implicits._ // For the $()-referenced columns
 
-    // >>> Begin Task to persist the entire collection
-    val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count"
-    val persistTaskId: Int = profiler.addTask(persistTaskName)
-
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession, readConfig).select(
-      "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
-    ).na.drop().filter(col("timestep") === 0
-    ).withColumnRenamed(regressionLabel, "label")
-
-    val assembler: VectorAssembler = new VectorAssembler()
-      .setInputCols(regressionFeatures)
-      .setOutputCol("features")
-    mongoCollection = assembler.transform(mongoCollection).persist()
-    val numRecords: Long = mongoCollection.count()
-
-    // <<< End Task for Dataframe Operations
-    profiler.finishTask(persistTaskId, System.currentTimeMillis())
-
     // Train all models
     gisJoins.foreach(
       gisJoin => {
 
-        val gisJoinCollection: Dataset[Row] = mongoCollection.filter(
-          col("gis_join") === gisJoin
-        )
+        // >>> Begin Task to persist the collection
+        val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count;gisJoin=%s".format(gisJoin)
+        val persistTaskId: Int = profiler.addTask(persistTaskName)
+
+        var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession, readConfig).select(
+          "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
+        ).na.drop().filter(
+          col("gis_join") === gisJoin && col("timestep") === 0
+        ).withColumnRenamed(regressionLabel, "label")
+
+        val assembler: VectorAssembler = new VectorAssembler()
+          .setInputCols(regressionFeatures)
+          .setOutputCol("features")
+        mongoCollection = assembler.transform(mongoCollection).persist()
+        val numRecords: Long = mongoCollection.count()
+
+        // <<< End Task to persist the collection
+        profiler.finishTask(persistTaskId)
 
         // Split input into testing set and training set:
         // 80% training, 20% testing, with random seed of 42
-        val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
+        val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
 
         // Create Linear Regression Estimator
         val linearRegression: LinearRegression = new LinearRegression()
@@ -202,7 +197,7 @@ class Experiment() extends Serializable {
         val predictions: DataFrame = lrModel.transform(test)
         val rmse: Double = evaluator.evaluate(predictions)
 
-        writeSequentialModelStats(sequentialStatsCSV, gisJoin, end-begin, rmse, iterations)
+        writeSequentialModelStats(sequentialStatsCSV, gisJoin, end-begin, rmse, iterations, numRecords)
       }
     )
 
@@ -371,14 +366,14 @@ class Experiment() extends Serializable {
   /**
    * Writes the modeling stats for a single model to a CSV file
    */
-  def writeSequentialModelStats(filename: String, gisJoin: String, time: Long, rmse: Double, iterations: Int): Unit = {
+  def writeSequentialModelStats(filename: String, gisJoin: String, time: Long, rmse: Double, iterations: Int, numRecords: Long): Unit = {
     val bw = new BufferedWriter(
       new FileWriter(
         new File(filename),
         true
       )
     )
-    bw.write("%s,%d,%d,%f\n".format(gisJoin, time, iterations, rmse))
+    bw.write("%s,%d,%d,%d,%f\n".format(gisJoin, time, numRecords, iterations, rmse))
     bw.close()
   }
 
