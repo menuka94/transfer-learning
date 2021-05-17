@@ -135,9 +135,6 @@ class Experiment() extends Serializable {
         "uri" -> "mongodb://lattice-100:27018",
         "database" -> "sustaindb",
         "collection" -> "noaa_nam_sharded",
-        "mongodb.keep_alive_ms" -> "100000",
-        "partitioner" -> "MongoShardedPartitioner",
-        "partitionerOptions.shardkey" -> "gis_join"
       ), Some(ReadConfig(sparkSession))
     )
 
