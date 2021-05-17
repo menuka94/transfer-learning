@@ -63,7 +63,7 @@ object Main {
 
     System.setProperty("mongodb.keep_alive_ms", "100000")
     val experiment: Experiment = new Experiment()
-    val seqTraining: SequentialTraining = new SequentialTraining(SPARK_MASTER, "mongdb://lattice-100:27018",
+    val seqTraining: SequentialTraining = new SequentialTraining(SPARK_MASTER, "mongodb://lattice-100:27018",
       MONGO_DB, MONGO_COLLECTION, experiment.loadGisJoins("experiment_data/job_profiles/clusters_pck6.csv"),
       REGRESSION_FEATURES, REGRESSION_LABEL)
 
