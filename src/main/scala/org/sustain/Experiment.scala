@@ -112,7 +112,7 @@ class Experiment() extends Serializable {
                          database: String, collection: String, regressionFeatures: Array[String],
                          regressionLabel: String, sequentialStatsCSV: String, profileOutput: String, gisJoins: Array[String]): Unit = {
 
-    writeSequentialModelHeader(sequentialStatsCSV)
+
     val profiler: Profiler = new Profiler()
     val experimentTaskId: Int = profiler.addTask("Experiment")
 
@@ -130,32 +130,45 @@ class Experiment() extends Serializable {
       .config(conf)
       .getOrCreate()
 
-    val readConfig: ReadConfig = ReadConfig(
-      Map(
-        "uri" -> "mongodb://lattice-100:27018/",
-        "database" -> "sustaindb",
-        "collection" -> "noaa_nam_sharded",
-      ), Some(ReadConfig(sparkSession))
-    )
+    writeSequentialModelHeader(sequentialStatsCSV)
 
-    import sparkSession.implicits._ // For the $()-referenced columns
+    val clusterModels: Array[ClusterLRModels] = new Array[ClusterLRModels](56)
+    val clusters: Array[ArrayBuffer[String]] = loadDefaultClusters(gisJoins)
 
-    /*val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count"
-    val persistTaskId: Int = profiler.addTask(persistTaskName)
+    for (i <- clusters.indices) {
+      val mongoHost: String = mongosRouters(i % mongosRouters.length) // choose a mongos router for cluster
+      val cluster: Array[String] = clusters(i).toArray
+      val mongoUri: String = "mongodb://%s:%s/".format(mongoHost, mongoPort)
+      val lr: LinearRegression = new LinearRegression()
+        .setFitIntercept(true)
+        .setMaxIter(10)
+        .setLoss("squaredError")
+        .setSolver("l-bfgs")
+        .setStandardization(true)
 
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession, readConfig).select(
-      "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
-    ).na.drop().filter(
-      col("timestep") === 0
-    ).withColumnRenamed(regressionLabel, "label")
+      clusterModels(i) = new ClusterLRModels(sparkMaster, mongoUri, database, collection, i, cluster, lr, cluster(0),
+        regressionFeatures, regressionLabel, profiler, sparkSession, sequentialStatsCSV)
+    }
 
-    val assembler: VectorAssembler = new VectorAssembler()
-      .setInputCols(regressionFeatures)
-      .setOutputCol("features")
-    mongoCollection = assembler.transform(mongoCollection).persist()
-    val numRecords: Long = mongoCollection.count()
+    try {
+      // Kick off training of LR models for all clusters
+      clusterModels.foreach(cluster => cluster.start())
 
-    profiler.finishTask(persistTaskId)*/
+      // Wait until models are done being trained
+      clusterModels.foreach(cluster => cluster.join())
+    } catch {
+      case e: java.lang.IllegalMonitorStateException =>
+        println("\n\n>>>Caught IllegalMonitorStateException!")
+        println(e.getMessage)
+
+        // Safe cleanup
+        sparkSession.close()
+        return
+
+    }
+
+
+/*
 
     // Train all models
     var modelsTrained: Int = 0
@@ -189,11 +202,7 @@ class Experiment() extends Serializable {
 
         // Create Linear Regression Estimator
         val linearRegression: LinearRegression = new LinearRegression()
-          .setFitIntercept(true)
-          .setMaxIter(10)
-          .setLoss("squaredError")
-          .setSolver("l-bfgs")
-          .setStandardization(true)
+
 
         // >>> Begin Task to fit training set
         val fitTaskName: String = "Fit Training Set"
@@ -220,12 +229,28 @@ class Experiment() extends Serializable {
         mongoCollection.unpersist()
         modelsTrained += 1
       }
-    )
+    )*/
 
     // <<< End Task for Experiment
     profiler.finishTask(experimentTaskId)
     profiler.writeToFile(profileOutput)
     profiler.close()
+  }
+
+  def loadDefaultClusters(gisJoins: Array[String]): Array[ArrayBuffer[String]] = {
+    val clusters: Array[ArrayBuffer[String]] = new Array[ArrayBuffer[String]](56)
+    for (i <- clusters.indices) {
+      clusters(i) = new ArrayBuffer[String]()
+    }
+    for (i <- gisJoins.indices) {
+      val clusterIndex: Int = i % 56
+      clusters(clusterIndex) += gisJoins(i)
+    }
+
+    for (i <- clusters.indices) {
+      println("Cluster Size:", clusters(i).size)
+    }
+    clusters
   }
 
   def loadGisJoins(filename: String): Array[String] = {
