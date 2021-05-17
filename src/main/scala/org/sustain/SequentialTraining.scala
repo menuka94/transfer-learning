@@ -11,6 +11,8 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
 
   def run(): Unit = {
 
+
+
   }
 
 }

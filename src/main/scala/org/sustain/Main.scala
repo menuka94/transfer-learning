@@ -55,9 +55,9 @@ object Main {
 
     val experiment: Experiment = new Experiment()
 
-    println("\n\n>>> Starting nanosecond timer\n")
-    experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-      MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
+//    println("\n\n>>> Starting nanosecond timer\n")
+//    experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+//      MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
 
 //    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
 //      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, CENTROID_STATS_CSV,
@@ -67,8 +67,8 @@ object Main {
 //    experiment.sequentialTraining(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB, MONGO_COLLECTION,
 //      REGRESSION_FEATURES, REGRESSION_LABEL, SEQUENTIAL_STATS_CSV, PROFILE_OUTPUT, experiment.loadGisJoins("experiment_data/job_profiles/clusters.csv"))
 
-    //val transferLearningTest: TransferLR = new TransferLR()
-    //transferLearningTest.testTrainTwo()
+    val transferLearningTest: TransferLR = new TransferLR()
+    transferLearningTest.testTrainTwo()
   }
 
   /**

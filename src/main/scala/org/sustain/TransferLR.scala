@@ -162,22 +162,45 @@ class TransferLR {
       .setMaster("spark://lattice-100:8079")
       .setAppName("Test Single Model Training")
       .set("spark.executor.cores", "8")
-      .set("spark.executor.memory", "10G")
+      .set("spark.executor.memory", "16G")
       .set("spark.mongodb.input.uri", "mongodb://lattice-100:27018/") // default mongos router
       .set("spark.mongodb.input.database", "sustaindb") // sustaindb
       .set("spark.mongodb.input.collection", "noaa_nam_sharded") // noaa_nam
+      .set("spark.mongodb.input.readPreference", "secondary")
 
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
       .getOrCreate()
 
-    val regressionFeatures: Array[String] = Array("relative_humidity_percent")
+    val regressionFeatures: Array[String] = Array(
+      "relative_humidity_percent",
+      "orography_surface_level_meters",
+      "relative_humidity_percent",
+      "10_metre_u_wind_component_meters_per_second",
+      "pressure_pascal",
+      "visibility_meters",
+      "total_cloud_cover_percent",
+      "10_metre_u_wind_component_meters_per_second",
+      "10_metre_v_wind_component_meters_per_second"
+    )
     val regressionLabel: String = "temp_surface_level_kelvin"
     val gisJoin: String = "G3100310"
 
     // Load in Dataset; reduce it down to rows for this GISJoin at timestep 0; persist it for multiple operations
     var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
-      .select("gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin")
+      .select(
+        "gis_join",
+        "timestep",
+        "temp_surface_level_kelvin",
+        "relative_humidity_percent",
+        "orography_surface_level_meters",
+        "relative_humidity_percent",
+        "10_metre_u_wind_component_meters_per_second",
+        "pressure_pascal",
+        "visibility_meters",
+        "total_cloud_cover_percent",
+        "10_metre_u_wind_component_meters_per_second",
+        "10_metre_v_wind_component_meters_per_second")
       .withColumnRenamed(regressionLabel, "label")
       .filter(col("gis_join") === gisJoin && col("timestep") === 0)
       .persist()
@@ -185,7 +208,7 @@ class TransferLR {
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(regressionFeatures)
       .setOutputCol("features")
-    mongoCollection = assembler.transform(mongoCollection)
+    mongoCollection = assembler.transform(mongoCollection).persist()
 
     // Split Dataset into train/test sets
     val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
@@ -198,74 +221,22 @@ class TransferLR {
       .setSolver("l-bfgs")
       .setStandardization(true)
 
-    // We use a ParamGridBuilder to construct a grid of parameters to search over.
-    // With 3 values for tolerance, 3 values for regularization param, and 3 values for epsilon,
-    // this grid will have 3 x 3 x 3 = 27 parameter settings for CrossValidator to choose from.
-    val paramGrid: Array[ParamMap] = new ParamGridBuilder()
-      .addGrid(linearRegression.tol, Array(0.001, 0.01, 0.1))
-      .addGrid(linearRegression.regParam, Array(0.0, 0.3, 0.1, 0.5))
-      .addGrid(linearRegression.epsilon, Array(1.35, 1.1, 1.5))
-      .build()
+    // Run cross-validation, and choose the best set of parameters.
+    val lrModel: LinearRegressionModel = linearRegression.fit(train)
+    val iterations: Int = lrModel.summary.totalIterations
+
+    println("\n\n>>> Summary History: totalIterations=%d, objectiveHistory:".format(iterations))
+    lrModel.summary.objectiveHistory.foreach{println}
 
     // Establish a Regression Evaluator for RMSE
     val evaluator: RegressionEvaluator = new RegressionEvaluator()
       .setMetricName("rmse")
-
-    // We now treat the Pipeline as an Estimator, wrapping it in a CrossValidator instance.
-    // This will allow us to jointly choose parameters for all Pipeline stages.
-    // A CrossValidator requires an Estimator, a set of Estimator ParamMaps, and an Evaluator.
-    // Note that the evaluator here is a BinaryClassificationEvaluator and its default metric
-    // is areaUnderROC.
-    val crossValidator: CrossValidator = new CrossValidator()
-      .setEstimator(linearRegression)
-      .setEvaluator(evaluator)
-      .setEstimatorParamMaps(paramGrid)
-      .setNumFolds(3)     // Use 3+ in practice
-      .setParallelism(2)  // Evaluate up to 2 parameter settings in parallel
-
-    // Run cross-validation, and choose the best set of parameters.
-    val crossValidatorModel: CrossValidatorModel = crossValidator.fit(train)
-    val bestLRModel: LinearRegressionModel = crossValidatorModel.bestModel.asInstanceOf[LinearRegressionModel]
-    val bestLRRegParam: Double = bestLRModel.getRegParam
-    val bestLRTol: Double = bestLRModel.getTol
-    val bestLREpsilon: Double = bestLRModel.getEpsilon
-    val bestLRIterations: Int = bestLRModel.summary.totalIterations
-
-    println("\n\n>>> Best Params: tol=%.5f, regParam=%.2f, epsilon=%.2f\n".format(
-      bestLRTol, bestLRRegParam, bestLREpsilon))
-
-    println("\n\n>>> Summary History: totalIterations=%d, objectiveHistory:".format(bestLRIterations))
-    bestLRModel.summary.objectiveHistory.foreach{println}
-
-    val bestEstimator: LinearRegression = bestLRModel.parent.asInstanceOf[LinearRegression]
-
-    // Fit a Linear Regression Estimator on all the data for the Centroid GISJoin,
-    // we will transfer this trained estimator to other estimators for the cluster.
-    val centroidLR: LinearRegression = new LinearRegression()
-      .setFitIntercept(true)
-      .setMaxIter(10)
-      .setLoss("squaredError")
-      .setSolver("l-bfgs")
-      .setStandardization(true)
-      .setRegParam(bestLRRegParam)
-      .setTol(bestLRTol)
-      .setEpsilon(bestLREpsilon)
-
-    val linearRegressionModel: LinearRegressionModel = centroidLR.fit(train)
-
-    // Record statistics on this model
-    println("\n\n>>> Total Iterations: %d, Objective History:".format(linearRegressionModel.summary.totalIterations))
-    linearRegressionModel.summary.objectiveHistory.foreach{println}
-
+    val predictions: Dataset[Row] = lrModel.transform(test)
+    val rmse: Double = evaluator.evaluate(predictions)
 
     // Make predictions on the testing Dataset, evaluate performance
-    val predictions: Dataset[Row] = linearRegressionModel.transform(test)
-    println("\n\n>>> Test set RMSE for " + gisJoin + ": " + evaluator.evaluate(predictions))
-
-
-    // Unpersist Dataset to free up space
+    println("\n\n>>> Test set RMSE: %f".format(rmse))
     mongoCollection.unpersist()
-    //this.profiler.finishTask(trainTaskId, System.currentTimeMillis())
   }
 
   /**
