@@ -141,6 +141,7 @@ class Experiment() extends Serializable {
     import sparkSession.implicits._ // For the $()-referenced columns
 
     // Train all models
+    var modelsTrained: Int = 0
     gisJoins.foreach(
       gisJoin => {
 
@@ -194,10 +195,11 @@ class Experiment() extends Serializable {
         val predictions: DataFrame = lrModel.transform(test)
         val rmse: Double = evaluator.evaluate(predictions)
 
-        println("\n\n>>> Test set RMSE for " + gisJoin + ": " + rmse + "\n")
+        println("\n\n>>> Test set RMSE for GISJoin [%d]: %s: %.4f\n".format(modelsTrained+1, gisJoin, rmse))
 
         writeSequentialModelStats(sequentialStatsCSV, gisJoin, end-begin, rmse, iterations, numRecords)
         mongoCollection.unpersist()
+        modelsTrained += 1
       }
     )
 
