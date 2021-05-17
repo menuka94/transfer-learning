@@ -119,8 +119,8 @@ class Experiment() extends Serializable {
     val conf: SparkConf = new SparkConf()
       .setMaster(sparkMaster)
       .setAppName(appName)
-      .set("spark.executor.cores", "8")
-      .set("spark.executor.memory", "16G")
+      .set("spark.executor.cores", "6")
+      .set("spark.executor.memory", "32G")
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort)) // default mongos router
       .set("spark.mongodb.input.database", database) // sustaindb
       .set("spark.mongodb.input.collection", collection) // noaa_nam
@@ -140,11 +140,28 @@ class Experiment() extends Serializable {
 
     import sparkSession.implicits._ // For the $()-referenced columns
 
+    val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count"
+    val persistTaskId: Int = profiler.addTask(persistTaskName)
+
+    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession, readConfig).select(
+      "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
+    ).na.drop().filter(
+      col("timestep") === 0
+    ).withColumnRenamed(regressionLabel, "label")
+
+    val assembler: VectorAssembler = new VectorAssembler()
+      .setInputCols(regressionFeatures)
+      .setOutputCol("features")
+    mongoCollection = assembler.transform(mongoCollection).persist()
+    val numRecords: Long = mongoCollection.count()
+
+    profiler.finishTask(persistTaskId)
+
     // Train all models
     var modelsTrained: Int = 0
     gisJoins.foreach(
       gisJoin => {
-
+/*
         // >>> Begin Task to persist the collection
         val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count;gisJoin=%s".format(gisJoin)
         val persistTaskId: Int = profiler.addTask(persistTaskName)
@@ -163,6 +180,9 @@ class Experiment() extends Serializable {
 
         // <<< End Task to persist the collection
         profiler.finishTask(persistTaskId)
+*/
+
+        mongoCollection = mongoCollection.filter(col("gis_join") === gisJoin)
 
         // Split input into testing set and training set:
         // 80% training, 20% testing, with random seed of 42
@@ -202,7 +222,6 @@ class Experiment() extends Serializable {
         modelsTrained += 1
       }
     )
-
 
     // <<< End Task for Experiment
     profiler.finishTask(experimentTaskId)
