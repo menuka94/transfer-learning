@@ -124,6 +124,7 @@ class Experiment() extends Serializable {
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort)) // default mongos router
       .set("spark.mongodb.input.database", database) // sustaindb
       .set("spark.mongodb.input.collection", collection) // noaa_nam
+      .set("spark.mongodb.input.readPreference.name", "secondary")
 
     // Create the SparkSession and ReadConfig
     val sparkSession: SparkSession = SparkSession.builder()
@@ -334,6 +335,8 @@ class Experiment() extends Serializable {
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
       .set("spark.mongodb.input.database", database)
       .set("spark.mongodb.input.collection", collection)
+      .set("spark.mongodb.input.readPreference.name", "secondary")
+
 
     // Create the SparkSession and ReadConfig
     val sparkConnector: SparkSession = SparkSession.builder()
