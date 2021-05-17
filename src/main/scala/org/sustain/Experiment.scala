@@ -106,12 +106,11 @@ class Experiment() extends Serializable {
   }
 
   /**
-   * Builds all ~3000 models sequentially without transfer learning, taking profiling stats for each model built.
+   * Builds all ~3000 models in even, randomly distributed clusters without transfer learning.
    */
-  def sequentialTraining(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
+  def evenClusterTraining(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
                          database: String, collection: String, regressionFeatures: Array[String],
                          regressionLabel: String, sequentialStatsCSV: String, profileOutput: String, gisJoins: Array[String]): Unit = {
-
 
     val profiler: Profiler = new Profiler()
     val experimentTaskId: Int = profiler.addTask("Experiment")
@@ -165,72 +164,7 @@ class Experiment() extends Serializable {
         // Safe cleanup
         sparkSession.close()
         return
-
     }
-
-
-/*
-
-    // Train all models
-    var modelsTrained: Int = 0
-    gisJoins.foreach(
-      gisJoin => {
-
-        // >>> Begin Task to persist the collection
-        val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count;gisJoin=%s".format(gisJoin)
-        val persistTaskId: Int = profiler.addTask(persistTaskName)
-
-        var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession, readConfig).select(
-          "gis_join", "relative_humidity_percent", "timestep", "temp_surface_level_kelvin"
-        ).na.drop().filter(
-          col("gis_join") === gisJoin && col("timestep") === 0
-        ).withColumnRenamed(regressionLabel, "label")
-
-        val assembler: VectorAssembler = new VectorAssembler()
-          .setInputCols(regressionFeatures)
-          .setOutputCol("features")
-        mongoCollection = assembler.transform(mongoCollection).persist()
-        val numRecords: Long = mongoCollection.count()
-
-        // <<< End Task to persist the collection
-        profiler.finishTask(persistTaskId)
-
-        mongoCollection = mongoCollection.filter(col("gis_join") === gisJoin)
-
-        // Split input into testing set and training set:
-        // 80% training, 20% testing, with random seed of 42
-        val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
-
-        // Create Linear Regression Estimator
-        val linearRegression: LinearRegression = new LinearRegression()
-
-
-        // >>> Begin Task to fit training set
-        val fitTaskName: String = "Fit Training Set"
-        val fitTaskId: Int = profiler.addTask(fitTaskName)
-
-        // Train LR model
-        val begin: Long = System.currentTimeMillis()
-        val lrModel: LinearRegressionModel = linearRegression.fit(train)
-        val end: Long = System.currentTimeMillis()
-        val iterations: Int = lrModel.summary.totalIterations
-
-        // <<< End Task to fit training set
-        profiler.finishTask(fitTaskId, System.currentTimeMillis())
-
-        // Establish a Regression Evaluator for RMSE
-        val evaluator: RegressionEvaluator = new RegressionEvaluator()
-          .setMetricName("rmse")
-        val predictions: DataFrame = lrModel.transform(test)
-        val rmse: Double = evaluator.evaluate(predictions)
-
-        println("\n\n>>> Test set RMSE for GISJoin [%d]: %s: %.4f\n".format(modelsTrained+1, gisJoin, rmse))
-
-        writeSequentialModelStats(sequentialStatsCSV, gisJoin, end-begin, rmse, iterations, numRecords)
-        mongoCollection.unpersist()
-        modelsTrained += 1
-      }
-    )*/
 
     // <<< End Task for Experiment
     profiler.finishTask(experimentTaskId)
@@ -321,6 +255,92 @@ class Experiment() extends Serializable {
     bufferedSource.close
 
     pcaClusters
+  }
+
+  /**
+   * Runs a single LR model for testing.
+   */
+  def runSingleModelTest(): Unit = {
+
+    val conf: SparkConf = new SparkConf()
+      .setMaster("spark://lattice-100:8079")
+      .setAppName("Test Single Model Training")
+      .set("spark.executor.cores", "8")
+      .set("spark.executor.memory", "16G")
+      .set("spark.mongodb.input.uri", "mongodb://lattice-100:27018/") // default mongos router
+      .set("spark.mongodb.input.database", "sustaindb") // sustaindb
+      .set("spark.mongodb.input.collection", "noaa_nam_sharded") // noaa_nam
+      .set("spark.mongodb.input.readPreference", "secondary")
+
+    val sparkSession: SparkSession = SparkSession.builder()
+      .config(conf)
+      .getOrCreate()
+
+    val regressionFeatures: Array[String] = Array(
+      "relative_humidity_percent",
+      "orography_surface_level_meters",
+      "relative_humidity_percent",
+      "10_metre_u_wind_component_meters_per_second",
+      "pressure_pascal",
+      "visibility_meters",
+      "total_cloud_cover_percent",
+      "10_metre_u_wind_component_meters_per_second",
+      "10_metre_v_wind_component_meters_per_second"
+    )
+    val regressionLabel: String = "temp_surface_level_kelvin"
+    val gisJoin: String = "G3100310"
+
+    // Load in Dataset; reduce it down to rows for this GISJoin at timestep 0; persist it for multiple operations
+    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
+      .select(
+        "gis_join",
+        "timestep",
+        "temp_surface_level_kelvin",
+        "relative_humidity_percent",
+        "orography_surface_level_meters",
+        "relative_humidity_percent",
+        "10_metre_u_wind_component_meters_per_second",
+        "pressure_pascal",
+        "visibility_meters",
+        "total_cloud_cover_percent",
+        "10_metre_u_wind_component_meters_per_second",
+        "10_metre_v_wind_component_meters_per_second")
+      .withColumnRenamed(regressionLabel, "label")
+      .filter(col("gis_join") === gisJoin && col("timestep") === 0)
+      .persist()
+
+    val assembler: VectorAssembler = new VectorAssembler()
+      .setInputCols(regressionFeatures)
+      .setOutputCol("features")
+    mongoCollection = assembler.transform(mongoCollection).persist()
+
+    // Split Dataset into train/test sets
+    val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
+
+    // Create basic Linear Regression Estimator
+    val linearRegression: LinearRegression = new LinearRegression()
+      .setFitIntercept(true)
+      .setMaxIter(10)
+      .setLoss("squaredError")
+      .setSolver("l-bfgs")
+      .setStandardization(true)
+
+    // Run cross-validation, and choose the best set of parameters.
+    val lrModel: LinearRegressionModel = linearRegression.fit(train)
+    val iterations: Int = lrModel.summary.totalIterations
+
+    println("\n\n>>> Summary History: totalIterations=%d, objectiveHistory:".format(iterations))
+    lrModel.summary.objectiveHistory.foreach{println}
+
+    // Establish a Regression Evaluator for RMSE
+    val evaluator: RegressionEvaluator = new RegressionEvaluator()
+      .setMetricName("rmse")
+    val predictions: Dataset[Row] = lrModel.transform(test)
+    val rmse: Double = evaluator.evaluate(predictions)
+
+    // Make predictions on the testing Dataset, evaluate performance
+    println("\n\n>>> Test set RMSE: %f".format(rmse))
+    mongoCollection.unpersist()
   }
 
   def pcaClustering(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,

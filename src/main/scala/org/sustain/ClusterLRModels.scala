@@ -7,6 +7,9 @@ import org.apache.spark.ml.regression.LinearRegression
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
+/**
+ * Trains a cluster of GISJoins, using the centroidEstimator as a starting point for hyperparameters and weights.
+ */
 class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String, collectionC: String, clusterIdC: Int,
                       gisJoinsC: Array[String], centroidEstimatorC: LinearRegression, centroidGisJoinC: String,
                       featuresC: Array[String], labelC: String, profilerC: Profiler, sparkSessionC: SparkSession,
@@ -58,15 +61,13 @@ class ClusterLRModels(sparkMasterC: String, mongoUriC: String, databaseC: String
       .setInputCols(this.features)
       .setOutputCol("features")
     mongoCollection = assembler.transform(mongoCollection).persist()
-    val numRecords: Long = mongoCollection.count()
 
     // <<< End Task for cluster's Dataframe Operations
     this.profiler.finishTask(persistTaskId, System.currentTimeMillis())
 
     // >>> Begin Task for training all models in cluster
     val trainAllClusterModelsTaskName: String = ("ClusterLRModels;Train all cluster models;" +
-      "gisJoin=%s;clusterId=%d;numModels=%d,numRecords=%d").format(
-      this.centroidGisJoin, this.clusterId, this.gisJoins.length, numRecords)
+      "gisJoin=%s;clusterId=%d").format(this.centroidGisJoin, this.clusterId)
     val trainAllClusterModelsTaskId: Int = this.profiler.addTask(trainAllClusterModelsTaskName)
 
     // Iterate over all gisJoins in this collection, build models for each from persisted collection

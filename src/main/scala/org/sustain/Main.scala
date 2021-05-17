@@ -41,7 +41,17 @@ object Main {
     "ice_cover_binary")
   val CLUSTERING_FEATURES: Array[String] = Array("avg_pc_0", "avg_pc_1", "avg_pc_2", "avg_pc_3", "avg_pc_4", "avg_pc_5")
   val CLUSTERING_K: Int = 56 // sqrt(3192) = 56
-  val REGRESSION_FEATURES: Array[String] = Array("relative_humidity_percent")
+  val REGRESSION_FEATURES: Array[String] = Array(
+    "relative_humidity_percent",
+    "orography_surface_level_meters",
+    "relative_humidity_percent",
+    "10_metre_u_wind_component_meters_per_second",
+    "pressure_pascal",
+    "visibility_meters",
+    "total_cloud_cover_percent",
+    "10_metre_u_wind_component_meters_per_second",
+    "10_metre_v_wind_component_meters_per_second"
+  )
   val REGRESSION_LABEL: String = "temp_surface_level_kelvin"
   val PROFILE_OUTPUT: String = "experiment_profile.csv"
   val CENTROID_STATS_CSV: String = "centroid_stats.csv"
@@ -52,8 +62,15 @@ object Main {
   def main(args: Array[String]): Unit = {
 
     System.setProperty("mongodb.keep_alive_ms", "100000")
-
     val experiment: Experiment = new Experiment()
+    val seqTraining: SequentialTraining = new SequentialTraining(SPARK_MASTER, "mongdb://lattice-100:27018",
+      MONGO_DB, MONGO_COLLECTION, experiment.loadGisJoins("experiment_data/job_profiles/clusters_pck6.csv"),
+      REGRESSION_FEATURES, REGRESSION_LABEL)
+
+    seqTraining.run()
+
+    //
+    // experiment.runSingleModelTest()
 
 //    println("\n\n>>> Starting nanosecond timer\n")
 //    experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
@@ -67,8 +84,6 @@ object Main {
 //    experiment.sequentialTraining(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB, MONGO_COLLECTION,
 //      REGRESSION_FEATURES, REGRESSION_LABEL, SEQUENTIAL_STATS_CSV, PROFILE_OUTPUT, experiment.loadGisJoins("experiment_data/job_profiles/clusters.csv"))
 
-    val transferLearningTest: TransferLR = new TransferLR()
-    transferLearningTest.testTrainTwo()
   }
 
   /**

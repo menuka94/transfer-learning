@@ -26,8 +26,6 @@ class TransferLR {
     val gisJoinCollection: Dataset[Row] = mongoCollection.filter(
       col("gis_join") === gisJoin && col("timestep") === 0)
 
-    val numRecords: Long = gisJoinCollection.count()
-
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
     //gisJoinCollection = gisJoinCollection.cache() // Cache Dataframe for just this GISJoin
@@ -46,7 +44,7 @@ class TransferLR {
     val rmse: Double = evaluator.evaluate(predictions)
     println("\n\n>>> Test set RMSE for %s: %f\n".format(gisJoin, rmse))
 
-    writeClusterModelStats(clusterStatsCSVFilename, gisJoin, clusterId, end-begin, rmse, iterations, numRecords)
+    writeClusterModelStats(clusterStatsCSVFilename, gisJoin, clusterId, end-begin, rmse, iterations)
 
     // <<< End Task for single cluster model's train() function
     profiler.finishTask(trainTaskId, System.currentTimeMillis())
@@ -156,101 +154,20 @@ class TransferLR {
     sparkSession.close()
   }
 
-  def testTrainTwo(): Unit = {
 
-    val conf: SparkConf = new SparkConf()
-      .setMaster("spark://lattice-100:8079")
-      .setAppName("Test Single Model Training")
-      .set("spark.executor.cores", "8")
-      .set("spark.executor.memory", "16G")
-      .set("spark.mongodb.input.uri", "mongodb://lattice-100:27018/") // default mongos router
-      .set("spark.mongodb.input.database", "sustaindb") // sustaindb
-      .set("spark.mongodb.input.collection", "noaa_nam_sharded") // noaa_nam
-      .set("spark.mongodb.input.readPreference", "secondary")
-
-    val sparkSession: SparkSession = SparkSession.builder()
-      .config(conf)
-      .getOrCreate()
-
-    val regressionFeatures: Array[String] = Array(
-      "relative_humidity_percent",
-      "orography_surface_level_meters",
-      "relative_humidity_percent",
-      "10_metre_u_wind_component_meters_per_second",
-      "pressure_pascal",
-      "visibility_meters",
-      "total_cloud_cover_percent",
-      "10_metre_u_wind_component_meters_per_second",
-      "10_metre_v_wind_component_meters_per_second"
-    )
-    val regressionLabel: String = "temp_surface_level_kelvin"
-    val gisJoin: String = "G3100310"
-
-    // Load in Dataset; reduce it down to rows for this GISJoin at timestep 0; persist it for multiple operations
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
-      .select(
-        "gis_join",
-        "timestep",
-        "temp_surface_level_kelvin",
-        "relative_humidity_percent",
-        "orography_surface_level_meters",
-        "relative_humidity_percent",
-        "10_metre_u_wind_component_meters_per_second",
-        "pressure_pascal",
-        "visibility_meters",
-        "total_cloud_cover_percent",
-        "10_metre_u_wind_component_meters_per_second",
-        "10_metre_v_wind_component_meters_per_second")
-      .withColumnRenamed(regressionLabel, "label")
-      .filter(col("gis_join") === gisJoin && col("timestep") === 0)
-      .persist()
-
-    val assembler: VectorAssembler = new VectorAssembler()
-      .setInputCols(regressionFeatures)
-      .setOutputCol("features")
-    mongoCollection = assembler.transform(mongoCollection).persist()
-
-    // Split Dataset into train/test sets
-    val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
-
-    // Create basic Linear Regression Estimator
-    val linearRegression: LinearRegression = new LinearRegression()
-      .setFitIntercept(true)
-      .setMaxIter(10)
-      .setLoss("squaredError")
-      .setSolver("l-bfgs")
-      .setStandardization(true)
-
-    // Run cross-validation, and choose the best set of parameters.
-    val lrModel: LinearRegressionModel = linearRegression.fit(train)
-    val iterations: Int = lrModel.summary.totalIterations
-
-    println("\n\n>>> Summary History: totalIterations=%d, objectiveHistory:".format(iterations))
-    lrModel.summary.objectiveHistory.foreach{println}
-
-    // Establish a Regression Evaluator for RMSE
-    val evaluator: RegressionEvaluator = new RegressionEvaluator()
-      .setMetricName("rmse")
-    val predictions: Dataset[Row] = lrModel.transform(test)
-    val rmse: Double = evaluator.evaluate(predictions)
-
-    // Make predictions on the testing Dataset, evaluate performance
-    println("\n\n>>> Test set RMSE: %f".format(rmse))
-    mongoCollection.unpersist()
-  }
 
   /**
    * Writes the modeling stats for a single model to a CSV file
    */
   def writeClusterModelStats(filename: String, gisJoin: String, clusterId: Int, time: Long, rmse: Double,
-                             iterations: Int, numRecords: Long): Unit = {
+                             iterations: Int): Unit = {
     val bw = new BufferedWriter(
       new FileWriter(
         new File(filename),
         true
       )
     )
-    bw.write("%s,%d,%d,%d,%f,%d\n".format(gisJoin, clusterId, time, iterations, rmse, numRecords))
+    bw.write("%s,%d,%d,%d,%f,%d\n".format(gisJoin, clusterId, time, iterations, rmse))
     bw.close()
   }
 
