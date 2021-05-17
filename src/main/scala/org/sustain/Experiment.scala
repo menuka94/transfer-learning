@@ -132,7 +132,7 @@ class Experiment() extends Serializable {
 
     val readConfig: ReadConfig = ReadConfig(
       Map(
-        "uri" -> "mongodb://lattice-100:27018",
+        "uri" -> "mongodb://lattice-100:27018/",
         "database" -> "sustaindb",
         "collection" -> "noaa_nam_sharded",
       ), Some(ReadConfig(sparkSession))

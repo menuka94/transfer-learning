@@ -51,6 +51,8 @@ object Main {
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
 
+    System.setProperty("mongodb.keep_alive_ms", "100000")
+
     val experiment: Experiment = new Experiment()
 
     //println("\n\n>>> Starting nanosecond timer\n")
