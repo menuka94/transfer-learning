@@ -134,7 +134,7 @@ class Experiment() extends Serializable {
       Map(
         "uri" -> "mongodb://lattice-100:27018/",
         "database" -> "sustaindb",
-        "collection" -> "noaa_nam",
+        "collection" -> "noaa_nam_sharded",
       ), Some(ReadConfig(sparkSession))
     )
 
