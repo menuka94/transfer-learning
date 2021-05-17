@@ -334,7 +334,6 @@ class Experiment() extends Serializable {
       .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort))
       .set("spark.mongodb.input.database", database)
       .set("spark.mongodb.input.collection", collection)
-      .set("mongodb.keep_alive_ms", "100000") // Important! Default is 5000ms, and stream will prematurely close
 
     // Create the SparkSession and ReadConfig
     val sparkConnector: SparkSession = SparkSession.builder()

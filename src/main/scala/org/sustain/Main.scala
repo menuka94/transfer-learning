@@ -20,7 +20,7 @@ object Main {
   val MONGO_ROUTER_HOSTS: Array[String] = Array("lattice-100", "lattice-101", "lattice-102", "lattice-103", "lattice-104")
   val MONGO_PORT: String = "27018"
   val MONGO_DB: String = "sustaindb"
-  val MONGO_COLLECTION: String = "noaa_nam"
+  val MONGO_COLLECTION: String = "noaa_nam_sharded"
   val PCA_FEATURES: Array[String] = Array("mean_sea_level_pressure_pascal",
     "surface_pressure_surface_level_pascal",
     "orography_surface_level_meters",
@@ -55,17 +55,17 @@ object Main {
 
     val experiment: Experiment = new Experiment()
 
-    //println("\n\n>>> Starting nanosecond timer\n")
-    //experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-    //  MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
+    println("\n\n>>> Starting nanosecond timer\n")
+    experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+      MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
 
 //    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
 //      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, CENTROID_STATS_CSV,
 //      CLUSTER_MODEL_STATS_CSV, experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
 
 
-    experiment.sequentialTraining(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB, MONGO_COLLECTION,
-      REGRESSION_FEATURES, REGRESSION_LABEL, SEQUENTIAL_STATS_CSV, PROFILE_OUTPUT, experiment.loadGisJoins("experiment_data/job_profiles/clusters.csv"))
+//    experiment.sequentialTraining(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB, MONGO_COLLECTION,
+//      REGRESSION_FEATURES, REGRESSION_LABEL, SEQUENTIAL_STATS_CSV, PROFILE_OUTPUT, experiment.loadGisJoins("experiment_data/job_profiles/clusters.csv"))
 
     //val transferLearningTest: TransferLR = new TransferLR()
     //transferLearningTest.testTrainTwo()

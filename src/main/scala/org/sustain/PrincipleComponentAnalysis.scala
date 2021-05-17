@@ -30,7 +30,7 @@ class PrincipleComponentAnalysis {
     val pca: PCAModel = new PCA()
       .setInputCol("features")
       .setOutputCol("pcaFeatures")
-      .setK(6)
+      .setK(13)
       .fit(normalizedFeatures)
 
     /*
