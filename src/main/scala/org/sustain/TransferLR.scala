@@ -26,6 +26,8 @@ class TransferLR {
     val gisJoinCollection: Dataset[Row] = mongoCollection.filter(
       col("gis_join") === gisJoin && col("timestep") === 0)
 
+    val numRecords: Long = gisJoinCollection.count()
+
     // Split input into testing set and training set:
     // 80% training, 20% testing, with random seed of 42
     //gisJoinCollection = gisJoinCollection.cache() // Cache Dataframe for just this GISJoin
@@ -44,7 +46,7 @@ class TransferLR {
     val rmse: Double = evaluator.evaluate(predictions)
     println("\n\n>>> Test set RMSE for %s: %f\n".format(gisJoin, rmse))
 
-    writeClusterModelStats(clusterStatsCSVFilename, gisJoin, clusterId, end-begin, rmse, iterations)
+    writeClusterModelStats(clusterStatsCSVFilename, gisJoin, clusterId, end-begin, rmse, iterations, numRecords)
 
     // <<< End Task for single cluster model's train() function
     profiler.finishTask(trainTaskId, System.currentTimeMillis())
@@ -270,14 +272,14 @@ class TransferLR {
    * Writes the modeling stats for a single model to a CSV file
    */
   def writeClusterModelStats(filename: String, gisJoin: String, clusterId: Int, time: Long, rmse: Double,
-                             iterations: Int): Unit = {
+                             iterations: Int, numRecords: Long): Unit = {
     val bw = new BufferedWriter(
       new FileWriter(
         new File(filename),
         true
       )
     )
-    bw.write("%s,%d,%d,%d,%f\n".format(gisJoin, clusterId, time, iterations, rmse))
+    bw.write("%s,%d,%d,%d,%f,%d\n".format(gisJoin, clusterId, time, iterations, rmse, numRecords))
     bw.close()
   }
 
