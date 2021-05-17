@@ -140,7 +140,7 @@ class Experiment() extends Serializable {
 
     import sparkSession.implicits._ // For the $()-referenced columns
 
-    val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count"
+    /*val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count"
     val persistTaskId: Int = profiler.addTask(persistTaskName)
 
     var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession, readConfig).select(
@@ -155,13 +155,13 @@ class Experiment() extends Serializable {
     mongoCollection = assembler.transform(mongoCollection).persist()
     val numRecords: Long = mongoCollection.count()
 
-    profiler.finishTask(persistTaskId)
+    profiler.finishTask(persistTaskId)*/
 
     // Train all models
     var modelsTrained: Int = 0
     gisJoins.foreach(
       gisJoin => {
-/*
+
         // >>> Begin Task to persist the collection
         val persistTaskName: String = "Load Dataframe + Select + Filter + Vector Assemble + Persist + Count;gisJoin=%s".format(gisJoin)
         val persistTaskId: Int = profiler.addTask(persistTaskName)
@@ -180,7 +180,6 @@ class Experiment() extends Serializable {
 
         // <<< End Task to persist the collection
         profiler.finishTask(persistTaskId)
-*/
 
         mongoCollection = mongoCollection.filter(col("gis_join") === gisJoin)
 
