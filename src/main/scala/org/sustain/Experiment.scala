@@ -198,6 +198,7 @@ class Experiment() extends Serializable {
         val rmse: Double = evaluator.evaluate(predictions)
 
         writeSequentialModelStats(sequentialStatsCSV, gisJoin, end-begin, rmse, iterations, numRecords)
+        mongoCollection.unpersist()
       }
     )
 
