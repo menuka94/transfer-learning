@@ -24,6 +24,8 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
 
   def runNonTransferLearnedModels(): Unit = {
 
+    writeHeader("no_tl_model_stats.csv")
+
     val conf: SparkConf = new SparkConf()
       .setMaster(this.sparkMaster)
       .setAppName("Sequential, Non-TL LR Models")
