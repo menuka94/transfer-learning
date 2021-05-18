@@ -23,7 +23,7 @@ object Main {
   val MONGO_ROUTER_HOSTS: Array[String] = Array("lattice-100", "lattice-101", "lattice-102", "lattice-103", "lattice-104")
   val MONGO_PORT: String = "27018"
   val MONGO_DB: String = "sustaindb"
-  val MONGO_COLLECTION: String = "noaa_nam"
+  val MONGO_COLLECTION: String = "noaa_nam_sharded"
   val PCA_FEATURES: Array[String] = Array("mean_sea_level_pressure_pascal",
     "surface_pressure_surface_level_pascal",
     "orography_surface_level_meters",
