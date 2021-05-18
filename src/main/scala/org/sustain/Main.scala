@@ -68,7 +68,7 @@ object Main {
 
     val experiment: Experiment = new Experiment()
 
-    val seqTraining: SequentialTraining = new SequentialTraining(SPARK_MASTER, "mongodb://lattice-100:27018",
+    val seqTraining: SequentialTraining = new SequentialTraining(SPARK_MASTER, "mongodb://lattice-100:27018/sustaindb.noaa_nam_sharded?maxIdleTimeMS=100000",
       MONGO_DB, MONGO_COLLECTION, experiment.loadGisJoins("experiment_data/job_profiles/clusters_pck6.csv"),
       REGRESSION_FEATURES, REGRESSION_LABEL)
     seqTraining.runNonTransferLearnedModels()

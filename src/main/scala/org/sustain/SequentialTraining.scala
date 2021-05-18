@@ -23,6 +23,8 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
 
   def runNonTransferLearnedModels(): Unit = {
 
+    System.setProperty("mongodb.keep_alive_ms", "200000")
+
     val conf: SparkConf = new SparkConf()
       .setMaster(this.sparkMaster)
       .setAppName("Sequential, Non-TL LR Models")
@@ -66,6 +68,8 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
     // Sequentially train all models, without transfer-learning
     gisJoins.foreach(
       gisJoin => {
+
+        System.setProperty("mongodb.keep_alive_ms", "200000")
 
         // Filter down to just this GISJoin
         val gisJoinCollection = mongoCollection.filter(
