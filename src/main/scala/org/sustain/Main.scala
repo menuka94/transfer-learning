@@ -64,7 +64,7 @@ object Main {
   /* Entrypoint for the application */
   def main(args: Array[String]): Unit = {
 
-    System.setProperty("mongodb.keep_alive_ms", "100000")
+    System.setProperty("mongodb.keep_alive_ms", "200000")
 
     val experiment: Experiment = new Experiment()
 
