@@ -31,7 +31,7 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
       .set("spark.mongodb.input.uri", this.mongoUri) // default mongos router
       .set("spark.mongodb.input.database", this.database) // sustaindb
       .set("spark.mongodb.input.collection", this.collection) // noaa_nam
-      .set("spark.mongodb.input.readPreference", "secondary")
+      .set("spark.mongodb.input.readPreference", "nearest")
 
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
@@ -61,6 +61,7 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
 
     mongoCollection = assembler.transform(mongoCollection)
       .select("gis_join", "features", "label")
+      .persist()
 
     // Sequentially train all models, without transfer-learning
     gisJoins.foreach(
@@ -69,7 +70,7 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
         // Filter down to just this GISJoin
         val gisJoinCollection = mongoCollection.filter(
           col("gis_join") === gisJoin
-        ).persist()
+        )
 
         // Split Dataset into train/test sets
         val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
