@@ -62,7 +62,7 @@ class TransferLR {
       .set("spark.executor.memory", "10G")
       .set("spark.mongodb.input.uri", "mongodb://lattice-100:27018/") // default mongos router
       .set("spark.mongodb.input.database", "sustaindb") // sustaindb
-      .set("spark.mongodb.input.collection", "noaa_nam_sharded") // noaa_nam
+      .set("spark.mongodb.input.collection", "noaa_nam") // noaa_nam
       //.set("spark.mongodb.input.partitioner", "MongoShardedPartitioner")
       //.set("spark.mongodb.input.partitionerOptions.shardkey", "gis_join")
 

@@ -12,6 +12,9 @@
  * ----------------------------------------------- */
 package org.sustain
 
+import org.apache.spark.ml.regression.LinearRegression
+import org.apache.spark.sql.{Dataset, Row}
+
 object Main {
 
   /* Global Variables */
@@ -62,12 +65,15 @@ object Main {
   def main(args: Array[String]): Unit = {
 
     System.setProperty("mongodb.keep_alive_ms", "100000")
+
     val experiment: Experiment = new Experiment()
+
     val seqTraining: SequentialTraining = new SequentialTraining(SPARK_MASTER, "mongodb://lattice-100:27018",
       MONGO_DB, MONGO_COLLECTION, experiment.loadGisJoins("experiment_data/job_profiles/clusters_pck6.csv"),
       REGRESSION_FEATURES, REGRESSION_LABEL)
+    seqTraining.runNonTransferLearnedModels()
 
-    seqTraining.run()
+    //seqTraining.run()
 
     //
     // experiment.runSingleModelTest()

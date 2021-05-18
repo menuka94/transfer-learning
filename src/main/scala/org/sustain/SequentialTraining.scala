@@ -8,6 +8,8 @@ import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.col
 
+import java.io.{BufferedWriter, File, FileWriter}
+
 class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: String, collectionC: String,
                          gisJoinsC: Array[String], featuresC: Array[String], labelC: String) {
 
@@ -19,7 +21,7 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
   val features: Array[String] = featuresC
   val label: String = labelC
 
-  def run(): Unit = {
+  def runNonTransferLearnedModels(): Unit = {
 
     val conf: SparkConf = new SparkConf()
       .setMaster(this.sparkMaster)
@@ -28,14 +30,14 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
       .set("spark.executor.memory", "16G")
       .set("spark.mongodb.input.uri", this.mongoUri) // default mongos router
       .set("spark.mongodb.input.database", this.database) // sustaindb
-      .set("spark.mongodb.input.collection", this.collection) // noaa_nam_sharded
+      .set("spark.mongodb.input.collection", this.collection) // noaa_nam
       .set("spark.mongodb.input.readPreference", "secondary")
 
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
       .getOrCreate()
 
-    // Load in Dataset; reduce it down to rows for this GISJoin at timestep 0; persist it for multiple operations
+    // Load in Dataset and persist it
     var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
       .select(
         "gis_join",
@@ -71,7 +73,7 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
         )
 
         // Split Dataset into train/test sets
-        val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
+        val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
 
         // Create basic Linear Regression Estimator
         val linearRegression: LinearRegression = new LinearRegression()
@@ -81,8 +83,12 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
           .setSolver("l-bfgs")
           .setStandardization(true)
 
+        val numRecords: Long = gisJoinCollection.count()
+
         // Fit on training set
+        val begin: Long = System.currentTimeMillis()
         val lrModel: LinearRegressionModel = linearRegression.fit(train)
+        val end: Long = System.currentTimeMillis()
         val iterations: Int = lrModel.summary.totalIterations
 
         println("\n\n>>> Summary History: totalIterations=%d, objectiveHistory:".format(iterations))
@@ -96,11 +102,44 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
 
         // Make predictions on the testing Dataset, evaluate performance
         println("\n\n>>> Test set RMSE: %f".format(rmse))
-
+        writeModelStats("no_tl_model_stats.csv", gisJoin, end-begin, iterations, rmse, numRecords)
       }
     )
 
     mongoCollection.unpersist()
+  }
+
+  def runTransferLearnedModels(): Unit = {
+
+  }
+
+
+
+  /**
+   * Writes the modeling header to a CSV file
+   */
+  def writeHeader(filename: String): Unit = {
+    val bw = new BufferedWriter(
+      new FileWriter(
+        new File(filename)
+      )
+    )
+    bw.write("gis_join,time_ms,iterations,rmse,num_records\n")
+    bw.close()
+  }
+
+  /**
+   * Writes the modeling stats for a single model to a CSV file
+   */
+  def writeModelStats(filename: String, gisJoin: String, time: Long, iterations: Int, rmse: Double, numRecords: Long): Unit = {
+    val bw = new BufferedWriter(
+      new FileWriter(
+        new File(filename),
+        true
+      )
+    )
+    bw.write("%s,%d,%d,%f,%d\n".format(gisJoin, time, iterations, rmse, numRecords))
+    bw.close()
   }
 
 }
