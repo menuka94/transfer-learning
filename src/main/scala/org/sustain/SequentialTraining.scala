@@ -9,6 +9,7 @@ import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.col
 
 import java.io.{BufferedWriter, File, FileWriter}
+import scala.collection.mutable.ArrayBuffer
 
 class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: String, collectionC: String,
                          gisJoinsC: Array[String], featuresC: Array[String], labelC: String) {
@@ -22,8 +23,6 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
   val label: String = labelC
 
   def runNonTransferLearnedModels(): Unit = {
-
-    System.setProperty("mongodb.keep_alive_ms", "200000")
 
     val conf: SparkConf = new SparkConf()
       .setMaster(this.sparkMaster)
@@ -39,85 +38,106 @@ class SequentialTraining(sparkMasterC: String, mongoUriC: String, databaseC: Str
       .config(conf)
       .getOrCreate()
 
-    // Load in Dataset and persist it
-    var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
-      .select(
-        "gis_join",
-        "timestep",
-        "temp_surface_level_kelvin",
-        "relative_humidity_percent",
-        "orography_surface_level_meters",
-        "relative_humidity_percent",
-        "10_metre_u_wind_component_meters_per_second",
-        "pressure_pascal",
-        "visibility_meters",
-        "total_cloud_cover_percent",
-        "10_metre_u_wind_component_meters_per_second",
-        "10_metre_v_wind_component_meters_per_second")
-      .withColumnRenamed(this.label, "label")
-      .filter(col("timestep") === 0)
+    val gisJoinBatches: Array[ArrayBuffer[String]] = loadDefaultClusters(this.gisJoins)
 
-    val assembler: VectorAssembler = new VectorAssembler()
-      .setInputCols(this.features)
-      .setOutputCol("features")
+    for (i <- gisJoinBatches.indices) {
+      println("\n\n>>> Working on batch %d\n".format(i))
+      val batch: ArrayBuffer[String] = gisJoinBatches(i)
 
-    mongoCollection = assembler.transform(mongoCollection)
-      .select("gis_join", "features", "label")
-      .persist()
-
-    // Sequentially train all models, without transfer-learning
-    gisJoins.foreach(
-      gisJoin => {
-
-        System.setProperty("mongodb.keep_alive_ms", "200000")
-
-        // Filter down to just this GISJoin
-        val gisJoinCollection = mongoCollection.filter(
-          col("gis_join") === gisJoin
+      // Load in Dataset and persist it
+      var mongoCollection: Dataset[Row] = MongoSpark.load(sparkSession)
+        .select(
+          "gis_join",
+          "timestep",
+          "temp_surface_level_kelvin",
+          "relative_humidity_percent",
+          "orography_surface_level_meters",
+          "relative_humidity_percent",
+          "10_metre_u_wind_component_meters_per_second",
+          "pressure_pascal",
+          "visibility_meters",
+          "total_cloud_cover_percent",
+          "10_metre_u_wind_component_meters_per_second",
+          "10_metre_v_wind_component_meters_per_second")
+        .withColumnRenamed(this.label, "label")
+        .filter(
+          col("timestep") === 0 && col("gis_join").isInCollection(batch)
         )
 
-        // Split Dataset into train/test sets
-        val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
+      val assembler: VectorAssembler = new VectorAssembler()
+        .setInputCols(this.features)
+        .setOutputCol("features")
 
-        // Create basic Linear Regression Estimator
-        val linearRegression: LinearRegression = new LinearRegression()
-          .setFitIntercept(true)
-          .setMaxIter(10)
-          .setLoss("squaredError")
-          .setSolver("l-bfgs")
-          .setStandardization(true)
+      mongoCollection = assembler.transform(mongoCollection)
+        .select("gis_join", "features", "label")
+        .persist()
 
-        val numRecords: Long = gisJoinCollection.count()
+      // Sequentially train all models, without transfer-learning
+      batch.foreach(
+        gisJoin => {
 
-        // Fit on training set
-        val begin: Long = System.currentTimeMillis()
-        val lrModel: LinearRegressionModel = linearRegression.fit(train)
-        val end: Long = System.currentTimeMillis()
-        val iterations: Int = lrModel.summary.totalIterations
+          // Filter down to just this GISJoin
+          val gisJoinCollection = mongoCollection.filter(
+            col("gis_join") === gisJoin
+          )
 
-        println("\n\n>>> Summary History: totalIterations=%d, objectiveHistory:".format(iterations))
-        lrModel.summary.objectiveHistory.foreach{println}
+          // Split Dataset into train/test sets
+          val Array(train, test): Array[Dataset[Row]] = gisJoinCollection.randomSplit(Array(0.8, 0.2), 42)
 
-        // Establish a Regression Evaluator for RMSE
-        val evaluator: RegressionEvaluator = new RegressionEvaluator()
-          .setMetricName("rmse")
-        val predictions: Dataset[Row] = lrModel.transform(test)
-        val rmse: Double = evaluator.evaluate(predictions)
+          // Create basic Linear Regression Estimator
+          val linearRegression: LinearRegression = new LinearRegression()
+            .setFitIntercept(true)
+            .setMaxIter(10)
+            .setLoss("squaredError")
+            .setSolver("l-bfgs")
+            .setStandardization(true)
 
-        // Make predictions on the testing Dataset, evaluate performance
-        println("\n\n>>> Test set RMSE: %f".format(rmse))
-        writeModelStats("no_tl_model_stats.csv", gisJoin, end-begin, iterations, rmse, numRecords)
-      }
-    )
+          val numRecords: Long = gisJoinCollection.count()
 
-    mongoCollection.unpersist()
+          // Fit on training set
+          val begin: Long = System.currentTimeMillis()
+          val lrModel: LinearRegressionModel = linearRegression.fit(train)
+          val end: Long = System.currentTimeMillis()
+          val iterations: Int = lrModel.summary.totalIterations
+
+          println("\n\n>>> Summary History: totalIterations=%d, objectiveHistory:".format(iterations))
+          lrModel.summary.objectiveHistory.foreach{println}
+
+          // Establish a Regression Evaluator for RMSE
+          val evaluator: RegressionEvaluator = new RegressionEvaluator()
+            .setMetricName("rmse")
+          val predictions: Dataset[Row] = lrModel.transform(test)
+          val rmse: Double = evaluator.evaluate(predictions)
+
+          // Make predictions on the testing Dataset, evaluate performance
+          println("\n\n>>> Test set RMSE: %f".format(rmse))
+          writeModelStats("no_tl_model_stats.csv", gisJoin, end-begin, iterations, rmse, numRecords)
+          mongoCollection.unpersist()
+        }
+      )
+    }
+
   }
 
   def runTransferLearnedModels(): Unit = {
 
   }
 
+  def loadDefaultClusters(gisJoins: Array[String]): Array[ArrayBuffer[String]] = {
+    val clusters: Array[ArrayBuffer[String]] = new Array[ArrayBuffer[String]](56)
+    for (i <- clusters.indices) {
+      clusters(i) = new ArrayBuffer[String]()
+    }
+    for (i <- gisJoins.indices) {
+      val clusterIndex: Int = i % 56
+      clusters(clusterIndex) += gisJoins(i)
+    }
 
+    for (i <- clusters.indices) {
+      println("Cluster Size:", clusters(i).size)
+    }
+    clusters
+  }
 
   /**
    * Writes the modeling header to a CSV file
