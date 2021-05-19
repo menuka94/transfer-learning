@@ -260,7 +260,7 @@ class SequentialTraining() {
 
         // Fit on training set
         val begin: Long = System.currentTimeMillis()
-        val lrModel: LinearRegressionModel = linearRegression.fit(train)
+        val lrModel: LinearRegressionModel = tlLinearRegression.fit(train)
         val end: Long = System.currentTimeMillis()
         val iterations: Int = lrModel.summary.totalIterations
 
