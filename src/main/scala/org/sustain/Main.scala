@@ -68,12 +68,14 @@ object Main {
 
     val experiment: Experiment = new Experiment()
 
-    val seqTraining: SequentialTraining = new SequentialTraining(SPARK_MASTER, "mongodb://lattice-100:27018/sustaindb.noaa_nam_sharded?maxIdleTimeMS=100000",
-      MONGO_DB, MONGO_COLLECTION, experiment.loadGisJoins("experiment_data/job_profiles/clusters_pck6.csv"),
-      REGRESSION_FEATURES, REGRESSION_LABEL)
-    seqTraining.runNonTransferLearnedModels()
+    val seqTraining: SequentialTraining = new SequentialTraining()
+//    seqTraining.runNonTransferLearnedModels(SPARK_MASTER, "mongodb://lattice-100:27018/sustaindb.noaa_nam_sharded?maxIdleTimeMS=100000",
+//      MONGO_DB, MONGO_COLLECTION, experiment.loadGisJoins("experiment_data/job_profiles/clusters_pck6.csv"),
+//      REGRESSION_FEATURES, REGRESSION_LABEL)
 
-    //seqTraining.run()
+    seqTraining.runTransferLearnedModels(SPARK_MASTER, "mongodb://lattice-100:27018/sustaindb.noaa_nam_sharded?maxIdleTimeMS=100000",
+      MONGO_DB, MONGO_COLLECTION, experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56),
+      REGRESSION_FEATURES, REGRESSION_LABEL)
 
     //
     // experiment.runSingleModelTest()
