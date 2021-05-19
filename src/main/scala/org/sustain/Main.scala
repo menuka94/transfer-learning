@@ -74,7 +74,7 @@ object Main {
 //      REGRESSION_FEATURES, REGRESSION_LABEL)
 
     seqTraining.runTransferLearnedModels(SPARK_MASTER, "mongodb://lattice-100:27018/sustaindb.noaa_nam_sharded?maxIdleTimeMS=100000",
-      MONGO_DB, MONGO_COLLECTION, experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56),
+      MONGO_DB, MONGO_COLLECTION, experiment.loadClusters("experiment_data/job_profiles/clusters_pck6.csv", 56),
       REGRESSION_FEATURES, REGRESSION_LABEL)
 
     //
