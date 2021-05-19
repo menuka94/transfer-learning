@@ -82,7 +82,7 @@ class SequentialTraining() {
           // Create basic Linear Regression Estimator
           val linearRegression: LinearRegression = new LinearRegression()
             .setFitIntercept(true)
-            .setMaxIter(10)
+            .setMaxIter(100)
             .setLoss("squaredError")
             .setSolver("l-bfgs")
             .setStandardization(true)
@@ -184,7 +184,7 @@ class SequentialTraining() {
       // Create basic Linear Regression Estimator
       val linearRegression: LinearRegression = new LinearRegression()
         .setFitIntercept(true)
-        .setMaxIter(10)
+        .setMaxIter(100)
         .setLoss("squaredError")
         .setSolver("l-bfgs")
         .setStandardization(true)
