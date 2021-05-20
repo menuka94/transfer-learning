@@ -48,7 +48,6 @@ object Main {
     "relative_humidity_percent",
     "orography_surface_level_meters",
     "relative_humidity_percent",
-    "10_metre_u_wind_component_meters_per_second",
     "pressure_pascal",
     "visibility_meters",
     "total_cloud_cover_percent",
@@ -68,10 +67,10 @@ object Main {
 
     val experiment: Experiment = new Experiment()
 
-    val seqTraining: SequentialTraining = new SequentialTraining()
-    seqTraining.runNonTransferLearnedModels(SPARK_MASTER, "mongodb://lattice-100:27018/sustaindb.noaa_nam_sharded?maxIdleTimeMS=100000",
-      MONGO_DB, MONGO_COLLECTION, experiment.loadGisJoins("experiment_data/job_profiles/clusters_pck6.csv"),
-      REGRESSION_FEATURES, REGRESSION_LABEL)
+//    val seqTraining: SequentialTraining = new SequentialTraining()
+//    seqTraining.runNonTransferLearnedModels(SPARK_MASTER, "mongodb://lattice-100:27018/sustaindb.noaa_nam_sharded?maxIdleTimeMS=100000",
+//      MONGO_DB, MONGO_COLLECTION, experiment.loadGisJoins("experiment_data/job_profiles/clusters_pck6.csv"),
+//      REGRESSION_FEATURES, REGRESSION_LABEL)
 
 //    seqTraining.runTransferLearnedModels(SPARK_MASTER, "mongodb://lattice-100:27018/sustaindb.noaa_nam_sharded?maxIdleTimeMS=100000",
 //      MONGO_DB, MONGO_COLLECTION, experiment.loadClusters("experiment_data/job_profiles/clusters_pck6.csv", 56),
@@ -91,6 +90,8 @@ object Main {
 
 //    experiment.sequentialTraining(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB, MONGO_COLLECTION,
 //      REGRESSION_FEATURES, REGRESSION_LABEL, SEQUENTIAL_STATS_CSV, PROFILE_OUTPUT, experiment.loadGisJoins("experiment_data/job_profiles/clusters.csv"))
+
+    new TransferLR().testTrain()
 
   }
 
