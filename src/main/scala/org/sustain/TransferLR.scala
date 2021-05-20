@@ -135,6 +135,8 @@ class TransferLR {
     linearRegression.fit(train)
     println("\n>>> END TS: %d\n".format(System.currentTimeMillis()))
 
+    linearRegression.save("saved_lr_model")
+
     sparkSession.close()
   }
 
