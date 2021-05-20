@@ -131,7 +131,7 @@ class TransferLR {
       .setStandardization(true)
 
 
-    println("\n>>> BEGIN TS: %d".format(System.currentTimeMillis()))
+    println("\n>>> BEGIN TS: %d\n".format(System.currentTimeMillis()))
     linearRegression.fit(train)
     println("\n>>> END TS: %d\n".format(System.currentTimeMillis()))
 
@@ -151,7 +151,7 @@ class TransferLR {
         true
       )
     )
-    bw.write("%s,%d,%d,%d,%f,%d\n".format(gisJoin, clusterId, time, iterations, rmse))
+    bw.write("%s,%d,%d,%d,%f\n".format(gisJoin, clusterId, time, iterations, rmse))
     bw.close()
   }
 
