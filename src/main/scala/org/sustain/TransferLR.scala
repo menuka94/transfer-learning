@@ -121,7 +121,7 @@ class TransferLR {
 
     println("\n\nNUMBER OF ROWS: %d\n".format(numRecords))
 
-    val lrModelLoaded: LinearRegressionModel = LinearRegressionModel.load("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
+    val lrModelLoaded: LinearRegressionModel = LinearRegressionModel.load("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model/data/part-00000-d472ad16-dbbd-43ad-be75-0aa26940995a-c000.snappy.parquet")
     val lrParent: LinearRegression = lrModelLoaded.parent.asInstanceOf[LinearRegression]
 
 //    val linearRegression: LinearRegression = new LinearRegression()
