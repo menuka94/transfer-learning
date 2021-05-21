@@ -45,7 +45,7 @@ class TransferLR {
     val rmse: Double = evaluator.evaluate(predictions)
     println("\n\n>>> Test set RMSE for %s: %f\n".format(gisJoin, rmse))
 
-    writeClusterModelStats(clusterStatsCSVFilename, gisJoin, clusterId, end-begin, rmse, iterations)
+    writeClusterModelStats(clusterStatsCSVFilename, gisJoin, clusterId, end - begin, rmse, iterations)
 
     // <<< End Task for single cluster model's train() function
     profiler.finishTask(trainTaskId, System.currentTimeMillis())
@@ -64,8 +64,8 @@ class TransferLR {
       .set("spark.mongodb.input.uri", "mongodb://lattice-100:27018/") // default mongos router
       .set("spark.mongodb.input.database", "sustaindb") // sustaindb
       .set("spark.mongodb.input.collection", "noaa_nam") // noaa_nam
-      //.set("spark.mongodb.input.partitioner", "MongoShardedPartitioner")
-      //.set("spark.mongodb.input.partitionerOptions.shardkey", "gis_join")
+    //.set("spark.mongodb.input.partitioner", "MongoShardedPartitioner")
+    //.set("spark.mongodb.input.partitionerOptions.shardkey", "gis_join")
 
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
@@ -102,9 +102,8 @@ class TransferLR {
         "10_metre_v_wind_component_meters_per_second")
       .withColumnRenamed(regressionLabel, "label")
       .filter(
-        col("timestep") === 0 && col("gis_join") === gisJoin2
+        col("timestep") === 0 && col("gis_join") === gisJoin
       )
-
 
     val assembler: VectorAssembler = new VectorAssembler()
       .setInputCols(regressionFeatures)
@@ -117,7 +116,10 @@ class TransferLR {
     // Split into train/test sets
     val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
 
+    val beginCount: Long = System.currentTimeMillis()
     var numRecords: Long = mongoCollection.count()
+    val endCount: Long = System.currentTimeMillis()
+
 
     println("\n\nNUMBER OF ROWS: %d\n".format(numRecords))
 
@@ -133,12 +135,21 @@ class TransferLR {
       .setStandardization(true)
 
 
+    val beginCentroidTrain: Long = System.currentTimeMillis()
     println("\n>>> BEGIN CENTROID TS: %d\n".format(System.currentTimeMillis()))
-    val centroidLRModel: LinearRegressionModel  = centroidLR.fit(train)
+    val centroidLRModel: LinearRegressionModel = centroidLR.fit(train)
     println("\n>>> END CENTROID TS: %d\n".format(System.currentTimeMillis()))
+    val endCentroidTrain: Long = System.currentTimeMillis()
+
+    val beginCentroidEvaluate: Long = System.currentTimeMillis()
+    val evaluator: RegressionEvaluator = new RegressionEvaluator().setMetricName("rmse")
+    val predictions: Dataset[Row] = centroidLRModel.transform(test)
+    val parentRmse: Double = evaluator.evaluate(predictions)
+    val targetRmse: Double = 1.05 * parentRmse
+    val endCentroidEvaluate: Long = System.currentTimeMillis()
+
     mongoCollection.unpersist()
 
-    /*
     mongoCollection = MongoSpark.load(sparkSession)
       .select(
         "gis_join",
@@ -157,31 +168,68 @@ class TransferLR {
         col("timestep") === 0 && col("gis_join") === gisJoin2
       )
 
-
-
     mongoCollection = assembler.transform(mongoCollection)
       .select("gis_join", "features", "label")
-      .persist()
-
-    // Split into train/test sets
-    val Array(train2, test2) = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
-
-    numRecords = mongoCollection.count()
 
     val lr: LinearRegression = centroidLRModel.parent.asInstanceOf[LinearRegression]
+    val sampleFractions: Array[Double] = Array(.15, .30, .60)
+
+    import scala.util.control._
+
+    var profileString: String = "%d,%d,%d".format(endCount-beginCount, endCentroidTrain-beginCentroidTrain, endCentroidEvaluate-beginCentroidEvaluate)
+
+    // create a Breaks object as follows
+    val loop = new Breaks
 
     println("\n>>> BEGIN TL LR TS: %d\n".format(System.currentTimeMillis()))
-    lr.fit(train2)
+    val beginTransferLearning: Long = System.currentTimeMillis()
+    var numIterations: Int = 0
+    loop.breakable {
+      for (fraction <- sampleFractions) {
+
+        numIterations += 1
+
+        val gisJoinSample: Dataset[Row] = mongoCollection.sample(fraction).persist()
+
+        // Split into train/test sets
+        val Array(train2, test2) = gisJoinSample.randomSplit(Array(0.8, 0.2), 42)
+
+        val beginSampleCount: Long = System.currentTimeMillis()
+        val sampleCount: Long = gisJoinSample.count()
+        val endSampleCount: Long = System.currentTimeMillis()
+
+        val beginSampleFit: Long = System.currentTimeMillis()
+        val lrModel2lr: regression.LinearRegressionModel = lr.fit(train2)
+        val endSampleFit: Long = System.currentTimeMillis()
+
+        val beginSampleEvaluate: Long = System.currentTimeMillis()
+        val predictions2: Dataset[Row] = lrModel2lr.transform(test)
+        val newRmse: Double = evaluator.evaluate(predictions2)
+        val endSampleEvaluate: Long = System.currentTimeMillis()
+
+        profileString += ",%d,%d,%d".format(endSampleCount-beginSampleCount, endSampleFit-beginSampleFit, endSampleEvaluate-beginSampleEvaluate)
+
+        if (newRmse <= targetRmse) {
+          loop.break
+        }
+
+        gisJoinSample.unpersist()
+      }
+    }
+    val endTransferLearning: Long = System.currentTimeMillis()
     println("\n>>> END TL LR TS: %d\n".format(System.currentTimeMillis()))
-    mongoCollection.unpersist()
 
-    //linearRegression.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr")
-    //lrModel.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
+    profileString += ",%d\n".format(endTransferLearning-beginTransferLearning)
 
-     */
+    var profileHeader: String = "centroid_data_transform,centroid_train,centroid_eval"
+    for (i <- 0 until numIterations) {
+      profileHeader += ",iter_%d_data_transform,iter_%d_train,iter_%d_eval".format(i+1,i+1,i+1)
+    }
 
+    println("\n\n>>> TRANSFER LEARNING EXPERIMENT RESULTS <<<\n")
+    println(profileHeader)
+    println(profileString)
   }
-
 
 
   /**
