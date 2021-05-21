@@ -120,24 +120,27 @@ class TransferLR {
 
     println("\n\nNUMBER OF ROWS: %d\n".format(numRecords))
 
-    val linearRegression: LinearRegression = new LinearRegression()
-      .setFitIntercept(true)
-      .setLoss("squaredError")
-      .setSolver("l-bfgs")
-      .setRegParam(0.0)
-      .setTol(0.001)
-      .setMaxIter(100)
-      .setEpsilon(1.35)
-      .setElasticNetParam(0.0)
-      .setStandardization(true)
+    val lrModelLoaded: LinearRegressionModel = LinearRegressionModel.load("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
+    val lrParent: LinearRegression = lrModelLoaded.parent.asInstanceOf[LinearRegression]
+
+//    val linearRegression: LinearRegression = new LinearRegression()
+//      .setFitIntercept(true)
+//      .setLoss("squaredError")
+//      .setSolver("l-bfgs")
+//      .setRegParam(0.0)
+//      .setTol(0.001)
+//      .setMaxIter(100)
+//      .setEpsilon(1.35)
+//      .setElasticNetParam(0.0)
+//      .setStandardization(true)
 
 
     println("\n>>> BEGIN TS: %d\n".format(System.currentTimeMillis()))
-    val lrModel: regression.LinearRegressionModel  = linearRegression.fit(train)
+    val lrModel: regression.LinearRegressionModel  = lrParent.fit(train)
     println("\n>>> END TS: %d\n".format(System.currentTimeMillis()))
 
-    linearRegression.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr")
-    lrModel.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
+    //linearRegression.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr")
+    //lrModel.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
 
   }
 
