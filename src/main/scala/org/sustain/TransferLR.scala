@@ -102,7 +102,7 @@ class TransferLR {
         "10_metre_v_wind_component_meters_per_second")
       .withColumnRenamed(regressionLabel, "label")
       .filter(
-        col("timestep") === 0 && col("gis_join") === gisJoin
+        col("timestep") === 0 && col("gis_join") === gisJoin2
       )
 
 
@@ -138,6 +138,7 @@ class TransferLR {
     println("\n>>> END CENTROID TS: %d\n".format(System.currentTimeMillis()))
     mongoCollection.unpersist()
 
+    /*
     mongoCollection = MongoSpark.load(sparkSession)
       .select(
         "gis_join",
@@ -176,6 +177,8 @@ class TransferLR {
 
     //linearRegression.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr")
     //lrModel.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
+
+     */
 
   }
 
