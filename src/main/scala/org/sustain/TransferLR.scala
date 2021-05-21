@@ -83,6 +83,7 @@ class TransferLR {
     )
     val regressionLabel: String = "temp_surface_level_kelvin"
     val gisJoin: String = "G3100310"
+    val gisJoin2: String = "G3001030"
 
 
     // Load in Dataset, VectorAssemble the features column, and persist it
@@ -101,7 +102,7 @@ class TransferLR {
         "10_metre_v_wind_component_meters_per_second")
       .withColumnRenamed(regressionLabel, "label")
       .filter(
-        col("timestep") === 0 && col("gis_join") === gisJoin
+        col("timestep") === 0 && col("gis_join") === gisJoin2
       )
 
 
