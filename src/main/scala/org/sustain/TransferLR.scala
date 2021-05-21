@@ -148,6 +148,8 @@ class TransferLR {
     val targetRmse: Double = 1.05 * parentRmse
     val endCentroidEvaluate: Long = System.currentTimeMillis()
 
+    println("\n\n>>> PARENT RMSE: %.4f, TARGET RMSE: %.4f\n".format(parentRmse, targetRmse))
+
     mongoCollection.unpersist()
 
     mongoCollection = MongoSpark.load(sparkSession)
@@ -206,6 +208,7 @@ class TransferLR {
         val beginSampleEvaluate: Long = System.currentTimeMillis()
         val predictions2: Dataset[Row] = lrModel2lr.transform(test)
         val newRmse: Double = evaluator.evaluate(predictions2)
+        println("\n\n>>> NEW RMSE: %.4f\n".format(newRmse))
         val endSampleEvaluate: Long = System.currentTimeMillis()
 
         profileString += ",%d,%d,%d".format(endSampleCount-beginSampleCount, endSampleFit-beginSampleFit, endSampleEvaluate-beginSampleEvaluate)
