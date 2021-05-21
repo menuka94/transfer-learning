@@ -122,7 +122,7 @@ class TransferLR {
     println("\n\nNUMBER OF ROWS: %d\n".format(numRecords))
 
     val lrModelLoaded: LinearRegressionModel = LinearRegressionModel.load("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
-    val lrParent: LinearRegression = lrModelLoaded.parent.asInstanceOf[LinearRegression]
+    val lrParentLoaded: LinearRegression = lrModelLoaded.parent.asInstanceOf[LinearRegression]
 
 //    val linearRegression: LinearRegression = new LinearRegression()
 //      .setFitIntercept(true)
@@ -135,9 +135,11 @@ class TransferLR {
 //      .setElasticNetParam(0.0)
 //      .setStandardization(true)
 
+    val linearRegression: LinearRegression = lrParentLoaded.copy(new ParamMap())
+
 
     println("\n>>> BEGIN TS: %d\n".format(System.currentTimeMillis()))
-    val lrModel: regression.LinearRegressionModel  = lrParent.fit(train)
+    val lrModel: LinearRegressionModel  = linearRegression.fit(train)
     println("\n>>> END TS: %d\n".format(System.currentTimeMillis()))
 
     //linearRegression.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr")
