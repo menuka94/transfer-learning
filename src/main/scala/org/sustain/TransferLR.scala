@@ -138,7 +138,7 @@ class TransferLR {
 
     linearRegression.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr")
     lrModel.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
-    sparkSession.close()
+
   }
 
 
