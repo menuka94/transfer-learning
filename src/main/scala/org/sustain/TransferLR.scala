@@ -5,6 +5,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.ml.regression
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
 import org.apache.spark.sql.functions.col
@@ -132,11 +133,11 @@ class TransferLR {
 
 
     println("\n>>> BEGIN TS: %d\n".format(System.currentTimeMillis()))
-    linearRegression.fit(train)
+    val lrModel: regression.LinearRegressionModel  = linearRegression.fit(train)
     println("\n>>> END TS: %d\n".format(System.currentTimeMillis()))
 
-    linearRegression.save("saved_lr_model")
-
+    linearRegression.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr")
+    lrModel.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
     sparkSession.close()
   }
 
