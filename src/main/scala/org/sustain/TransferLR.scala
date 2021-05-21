@@ -170,6 +170,7 @@ class TransferLR {
 
     mongoCollection = assembler.transform(mongoCollection)
       .select("gis_join", "features", "label")
+      .persist()
 
     val lr: LinearRegression = centroidLRModel.parent.asInstanceOf[LinearRegression]
     val sampleFractions: Array[Double] = Array(.15, .30, .60)
@@ -189,7 +190,7 @@ class TransferLR {
 
         numIterations += 1
 
-        val gisJoinSample: Dataset[Row] = mongoCollection.sample(fraction).persist()
+        val gisJoinSample: Dataset[Row] = mongoCollection.sample(fraction)
 
         // Split into train/test sets
         val Array(train2, test2) = gisJoinSample.randomSplit(Array(0.8, 0.2), 42)
@@ -212,8 +213,6 @@ class TransferLR {
         if (newRmse <= targetRmse) {
           loop.break
         }
-
-        gisJoinSample.unpersist()
       }
     }
     val endTransferLearning: Long = System.currentTimeMillis()
@@ -229,6 +228,8 @@ class TransferLR {
     println("\n\n>>> TRANSFER LEARNING EXPERIMENT RESULTS <<<\n")
     println(profileHeader)
     println(profileString)
+
+    mongoCollection.unpersist()
   }
 
 
