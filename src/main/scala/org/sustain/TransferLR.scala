@@ -102,7 +102,7 @@ class TransferLR {
         "10_metre_v_wind_component_meters_per_second")
       .withColumnRenamed(regressionLabel, "label")
       .filter(
-        col("timestep") === 0 && col("gis_join") === gisJoin2
+        col("timestep") === 0 && col("gis_join") === gisJoin
       )
 
 
@@ -117,30 +117,62 @@ class TransferLR {
     // Split into train/test sets
     val Array(train, test): Array[Dataset[Row]] = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
 
-    val numRecords: Long = mongoCollection.count()
+    var numRecords: Long = mongoCollection.count()
 
     println("\n\nNUMBER OF ROWS: %d\n".format(numRecords))
 
-    val lrModelLoaded: LinearRegressionModel = LinearRegressionModel.load("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
-    val lrParentLoaded: LinearRegression = lrModelLoaded.parent.asInstanceOf[LinearRegression]
-
-//    val linearRegression: LinearRegression = new LinearRegression()
-//      .setFitIntercept(true)
-//      .setLoss("squaredError")
-//      .setSolver("l-bfgs")
-//      .setRegParam(0.0)
-//      .setTol(0.001)
-//      .setMaxIter(100)
-//      .setEpsilon(1.35)
-//      .setElasticNetParam(0.0)
-//      .setStandardization(true)
-
-    val linearRegression: LinearRegression = lrParentLoaded.copy(new ParamMap())
+    val centroidLR: LinearRegression = new LinearRegression()
+      .setFitIntercept(true)
+      .setLoss("squaredError")
+      .setSolver("l-bfgs")
+      .setRegParam(0.0)
+      .setTol(0.001)
+      .setMaxIter(100)
+      .setEpsilon(1.35)
+      .setElasticNetParam(0.0)
+      .setStandardization(true)
 
 
-    println("\n>>> BEGIN TS: %d\n".format(System.currentTimeMillis()))
-    val lrModel: LinearRegressionModel  = linearRegression.fit(train)
-    println("\n>>> END TS: %d\n".format(System.currentTimeMillis()))
+    println("\n>>> BEGIN CENTROID TS: %d\n".format(System.currentTimeMillis()))
+    val centroidLRModel: LinearRegressionModel  = centroidLR.fit(train)
+    println("\n>>> END CENTROID TS: %d\n".format(System.currentTimeMillis()))
+    mongoCollection.unpersist()
+
+    mongoCollection = MongoSpark.load(sparkSession)
+      .select(
+        "gis_join",
+        "timestep",
+        "temp_surface_level_kelvin",
+        "relative_humidity_percent",
+        "orography_surface_level_meters",
+        "relative_humidity_percent",
+        "pressure_pascal",
+        "visibility_meters",
+        "total_cloud_cover_percent",
+        "10_metre_u_wind_component_meters_per_second",
+        "10_metre_v_wind_component_meters_per_second")
+      .withColumnRenamed(regressionLabel, "label")
+      .filter(
+        col("timestep") === 0 && col("gis_join") === gisJoin2
+      )
+
+
+
+    mongoCollection = assembler.transform(mongoCollection)
+      .select("gis_join", "features", "label")
+      .persist()
+
+    // Split into train/test sets
+    val Array(train2, test2) = mongoCollection.randomSplit(Array(0.8, 0.2), 42)
+
+    numRecords = mongoCollection.count()
+
+    val lr: LinearRegression = centroidLRModel.parent.asInstanceOf[LinearRegression]
+
+    println("\n>>> BEGIN TL LR TS: %d\n".format(System.currentTimeMillis()))
+    lr.fit(train2)
+    println("\n>>> END TL LR TS: %d\n".format(System.currentTimeMillis()))
+    mongoCollection.unpersist()
 
     //linearRegression.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr")
     //lrModel.save("/s/parsons/b/others/sustain/caleb/transfer-learning/saved_lr_model")
