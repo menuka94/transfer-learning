@@ -18,7 +18,7 @@ import org.apache.spark.sql.{Dataset, Row}
 object Main {
 
   /* Global Variables */
-  val SPARK_MASTER: String = "spark://lattice-100:8079"
+//  val SPARK_MASTER: String = "spark://lattice-100:8079"
   val APP_NAME: String = "Transfer Learning"
   val MONGO_ROUTER_HOSTS: Array[String] = Array("lattice-100", "lattice-101", "lattice-102", "lattice-103", "lattice-104")
   val MONGO_PORT: String = "27018"
@@ -83,9 +83,9 @@ object Main {
 //    experiment.pcaClustering(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
 //      MONGO_COLLECTION, CLUSTERING_FEATURES, CLUSTERING_K, PCA_FEATURES)
 
-//    experiment.transferLearning(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
-//      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, CENTROID_STATS_CSV,
-//      CLUSTER_MODEL_STATS_CSV, experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
+    experiment.transferLearning(APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB,
+      MONGO_COLLECTION, REGRESSION_FEATURES, REGRESSION_LABEL, PROFILE_OUTPUT, CENTROID_STATS_CSV,
+      CLUSTER_MODEL_STATS_CSV, experiment.loadClusters("experiment_data/job_profiles/clusters.csv", 56))
 
 
 //    experiment.sequentialTraining(SPARK_MASTER, APP_NAME, MONGO_ROUTER_HOSTS, MONGO_PORT, MONGO_DB, MONGO_COLLECTION,
@@ -109,6 +109,4 @@ object Main {
     println("\n\n>>> Elapsed time: " + ( (t1 - t0) / 10E8 )  + " seconds") // Convert nanoseconds to seconds
     result
   }
-
-
 }

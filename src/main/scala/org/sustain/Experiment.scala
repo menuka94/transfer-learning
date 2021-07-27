@@ -16,7 +16,7 @@ import scala.io.Source
 @SerialVersionUID(114L)
 class Experiment() extends Serializable {
 
-  def transferLearning(sparkMaster: String, appName: String, mongosRouters: Array[String], mongoPort: String,
+  def transferLearning(appName: String, mongosRouters: Array[String], mongoPort: String,
                        database: String, collection: String, regressionFeatures: Array[String],
                        regressionLabel: String, profileOutput: String, centroidStatsCSV: String,
                        clusterModelStatsCSV: String, pcaClusters: Array[PCACluster]): Unit = {
@@ -25,6 +25,7 @@ class Experiment() extends Serializable {
     val experimentTaskId: Int = profiler.addTask("Experiment")
     scala.util.Sorting.quickSort(pcaClusters)
 
+/*
     val conf: SparkConf = new SparkConf()
       .setMaster(sparkMaster)
       .setAppName(appName)
@@ -39,6 +40,9 @@ class Experiment() extends Serializable {
     val sparkSession: SparkSession = SparkSession.builder()
       .config(conf)
       .getOrCreate()
+*/
+
+    val sparkSession: SparkSession = SparkManager.getSparkSession(collection)
 
     import sparkSession.implicits._ // For the $()-referenced columns
 
@@ -47,7 +51,7 @@ class Experiment() extends Serializable {
     for (cluster: PCACluster <- pcaClusters) {
       val mongoHost: String = mongosRouters(cluster.clusterId % mongosRouters.length) // choose a mongos router
       val mongoUri: String = "mongodb://%s:%s/".format(mongoHost, mongoPort)
-      centroidModels(cluster.clusterId) = new CentroidModel(sparkMaster, mongoUri, database, collection,
+      centroidModels(cluster.clusterId) = new CentroidModel(SparkManager.getSparkMaster(), mongoUri, database, collection,
         regressionLabel, regressionFeatures, cluster.centerGisJoin, cluster.clusterId, sparkSession, profiler, centroidStatsCSV)
     }
 
@@ -78,7 +82,7 @@ class Experiment() extends Serializable {
       val mongoUri: String = "mongodb://%s:%s/".format(mongoHost, mongoPort)
       val centroidModel: CentroidModel = centroidModels(cluster.clusterId)
 
-      clusterModels(cluster.clusterId) = new ClusterLRModels(sparkMaster, mongoUri, database, collection, cluster.clusterId,
+      clusterModels(cluster.clusterId) = new ClusterLRModels(SparkManager.getSparkMaster(), mongoUri, database, collection, cluster.clusterId,
         cluster.clusterGisJoins.toArray, centroidModel.linearRegression, cluster.centerGisJoin, regressionFeatures,
         regressionLabel, profiler, sparkSession, clusterModelStatsCSV)
     }
