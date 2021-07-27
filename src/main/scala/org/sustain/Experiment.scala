@@ -119,20 +119,7 @@ class Experiment() extends Serializable {
     val profiler: Profiler = new Profiler()
     val experimentTaskId: Int = profiler.addTask("Experiment")
 
-    val conf: SparkConf = new SparkConf()
-      .setMaster(sparkMaster)
-      .setAppName(appName)
-      .set("spark.executor.cores", "6")
-      .set("spark.executor.memory", "32G")
-      .set("spark.mongodb.input.uri", "mongodb://%s:%s/".format(mongosRouters(0), mongoPort)) // default mongos router
-      .set("spark.mongodb.input.database", database) // sustaindb
-      .set("spark.mongodb.input.collection", collection) // noaa_nam
-      .set("spark.mongodb.input.readPreference.name", "secondary")
-
-    // Create the SparkSession and ReadConfig
-    val sparkSession: SparkSession = SparkSession.builder()
-      .config(conf)
-      .getOrCreate()
+    val sparkSession: SparkSession = SparkManager.getSparkSession(collection)
 
     writeSequentialModelHeader(sequentialStatsCSV)
 
@@ -266,19 +253,8 @@ class Experiment() extends Serializable {
    */
   def runSingleModelTest(): Unit = {
 
-    val conf: SparkConf = new SparkConf()
-      .setMaster("spark://lattice-100:8079")
-      .setAppName("Test Single Model Training")
-      .set("spark.executor.cores", "8")
-      .set("spark.executor.memory", "16G")
-      .set("spark.mongodb.input.uri", "mongodb://lattice-100:27018/") // default mongos router
-      .set("spark.mongodb.input.database", "sustaindb") // sustaindb
-      .set("spark.mongodb.input.collection", "noaa_nam_sharded") // noaa_nam
-      .set("spark.mongodb.input.readPreference", "secondary")
-
-    val sparkSession: SparkSession = SparkSession.builder()
-      .config(conf)
-      .getOrCreate()
+    val collection = "noaa_nam_sharded"
+    val sparkSession: SparkSession = SparkManager.getSparkSession(collection)
 
     val regressionFeatures: Array[String] = Array(
       "relative_humidity_percent",
