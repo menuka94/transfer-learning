@@ -1,3 +1,4 @@
+
 name := "transfer-learning"
 
 version := "1.0"
@@ -12,3 +13,11 @@ libraryDependencies ++= Seq(
   "org.apache.spark"  %% "spark-sql"              % "3.0.1",
   "org.apache.spark"  %% "spark-mllib"            % "3.0.1"
 )
+
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs@_*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
+
+test in assembly := {}
